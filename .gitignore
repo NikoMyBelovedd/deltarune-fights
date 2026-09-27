@@ -1,0 +1,11 @@
+# Game-derived data: NEVER commit
+.gamedata/
+public/game/
+dist/
+# Third-party tools fetched locally
+tools/utmt/
+tools/gm-html5/
+node_modules/
+*.log
+.DS_Store
+tools/underanalyzer/
