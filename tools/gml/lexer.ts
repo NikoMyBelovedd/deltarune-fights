@@ -83,6 +83,14 @@ export function lex(src: string): Token[] {
       i += 2;
       continue;
     }
+    if (c === '#' && /^[0-9a-fA-F]{6}(?![0-9a-zA-Z_])/.test(src.slice(i + 1, i + 8))) {
+      // CSS-style colour literal #RRGGBB -> GameMaker BGR integer
+      const h = src.slice(i + 1, i + 7);
+      const rr = parseInt(h.slice(0, 2), 16), gg = parseInt(h.slice(2, 4), 16), bb = parseInt(h.slice(4, 6), 16);
+      toks.push({ kind: 'num', value: '#' + h, num: rr | (gg << 8) | (bb << 16), int: true, line });
+      i += 7;
+      continue;
+    }
     if (c === '#') {
       // #region / #endregion / #macro lines: skip (decompiler output does not use them meaningfully)
       while (i < n && src[i] !== '\n') i++;
