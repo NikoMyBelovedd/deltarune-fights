@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>deltaruneWEB dev</title>
+<style>
+  html, body { margin: 0; background: #000; color: #ccc; font: 13px monospace; }
+  #mount { width: 640px; height: 480px; }
+  .game-canvas { width: 640px; height: 480px; image-rendering: pixelated; }
+  #log { white-space: pre; height: 200px; overflow: auto; }
+</style>
+</head>
+<body>
+<button id="go">Start Jevil</button>
+<div id="status"></div>
+<div id="mount"></div>
+<div id="log"></div>
+<script type="module">
+  import { GameHost } from '/src/engine/host.ts';
+  import { InputRouter } from '/src/engine/input.ts';
+  import { FIGHTS } from '/src/fights.ts';
+  import { startFight } from '/src/play.ts';
+  const host = new GameHost();
+  const input = new InputRouter();
+  const log = document.getElementById('log');
+  window.__events = [];
+  host.on((e) => {
+    if (e.type === 'progress') document.getElementById('status').textContent = `loading ${(e.loaded / 1048576).toFixed(1)} / ${(e.total / 1048576).toFixed(1)} MB`;
+    else {
+      window.__events.push(e);
+      if (e.type !== 'log' || e.level === 'error') log.textContent += JSON.stringify(e) + '\n';
+    }
+  });
+  const params = new URLSearchParams(location.search);
+  async function go() {
+    host.resumeAudio();
+    input.attach((vk, down) => host.key(vk, down));
+    await startFight(host, document.getElementById('mount'), {
+      fight: FIGHTS.find((f) => f.id === (params.get('boss') ?? 'jevil')),
+      variant: '', mode: params.get('mode') ?? 'normal', intro: params.get('intro') !== '0', attack: -1, phase: 0,
+      seed: Number(params.get('seed') ?? 0), weapons: {}, armors: {}, items: [], dials: { bulletMult: 1, cooldown: 100 },
+    });
+  }
+  document.getElementById('go').onclick = go;
+  if (params.has('auto')) go();
+</script>
+</body>
+</html>

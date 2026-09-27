@@ -1,0 +1,64 @@
+// Starting a fight: resolves the file list for a fight, writes its config and hands it to the GameHost.
+import type { BundleManifest, GameHost } from './engine/host.ts';
+import type { FightDef } from './fights.ts';
+
+export interface FightConfig {
+  fight: FightDef;
+  variant: string;
+  mode: 'normal' | 'hitless' | 'practice' | 'single' | 'endless';
+  intro: boolean;
+  attack: number;
+  phase: number;
+  seed: number;
+  weapons: Record<number, number>;
+  armors: Record<number, [number, number]>;
+  items: number[];
+  stats?: Record<number, { hp?: number; at?: number; df?: number; mag?: number }>;
+  dials: { bulletMult: number; cooldown: number };
+}
+
+export function configToIni(c: FightConfig): string {
+  const lines = ['[fight]', `boss=${c.fight.id}`, `variant=${c.variant}`, `mode=${c.mode}`, `intro=${c.intro ? 1 : 0}`,
+    `attack=${c.attack}`, `phase=${c.phase}`, `seed=${c.seed}`, '[dials]', `bulletmult=${c.dials.bulletMult}`, `cooldown=${c.dials.cooldown}`, '[party]'];
+  for (const [ch, w] of Object.entries(c.weapons)) lines.push(`weapon${ch}=${w}`);
+  for (const [ch, [a, b]] of Object.entries(c.armors)) lines.push(`armor${ch}a=${a}`, `armor${ch}b=${b}`);
+  lines.push('[items]');
+  for (let i = 0; i < 12; i++) lines.push(`item${i}=${c.items[i] ?? 0}`);
+  if (c.stats) {
+    lines.push('[stats]');
+    for (const [ch, s] of Object.entries(c.stats)) {
+      for (const k of ['hp', 'at', 'df', 'mag'] as const) if (s[k] !== undefined) lines.push(`${k}${ch}=${s[k]}`);
+    }
+  }
+  return lines.join('\n') + '\n';
+}
+
+const manifests = new Map<number, Promise<BundleManifest>>();
+
+async function chapterManifest(ch: number): Promise<BundleManifest> {
+  let p = manifests.get(ch);
+  if (!p) {
+    p = fetch(`/game/ch${ch}/files.json`, { cache: 'no-cache' }).then((r) => {
+      if (!r.ok) throw new Error(`Chapter ${ch} files are not available on this server.`);
+      return r.json();
+    });
+    manifests.set(ch, p);
+  }
+  const m = await p;
+  return m;
+}
+
+/** Only the files this fight needs: everything except music, plus its own tracks. */
+export async function fightManifest(fight: FightDef): Promise<BundleManifest> {
+  const m = await chapterManifest(fight.chapter);
+  const music = new Set(fight.music.map((f) => `mus/${f}`));
+  const files = m.files
+    .filter((f) => !f.path.startsWith('mus/') || music.has(f.path))
+    .map((f) => ({ ...f, url: `/game/ch${fight.chapter}/${f.path}` }));
+  return { bundle: m.bundle, dataPath: m.dataPath, files };
+}
+
+export async function startFight(host: GameHost, mount: HTMLElement, cfg: FightConfig): Promise<void> {
+  const manifest = await fightManifest(cfg.fight);
+  await host.start(mount, manifest, configToIni(cfg));
+}

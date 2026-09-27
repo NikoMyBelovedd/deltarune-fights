@@ -13,3 +13,4 @@ tools/butterscotch/
 tools/emsdk/
 tools/bs-web-ref/
 *.log
+public/engine/butterscotch.*
