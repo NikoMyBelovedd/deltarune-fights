@@ -109,7 +109,7 @@ export class InputRouter {
     this.press(vk, e.type === 'keydown');
   };
 
-  private releaseAll = (): void => {
+  releaseAll = (): void => {
     for (const [vk, n] of this.held) if (n > 0) this.sink?.(vk, false);
     this.held.clear();
     this.padHeld.clear();

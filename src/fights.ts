@@ -1,46 +1,98 @@
 // Registry of the fights the site offers. Shared by the menu and the bundle builder.
 
 export interface FightVariant { id: string; name: string }
+export type ModeId = 'normal' | 'hitless' | 'practice' | 'single' | 'endless';
+
+export interface Loadout {
+  /** character id -> weapon id */
+  weapons: Record<number, number>;
+  /** character id -> [armor1, armor2] */
+  armors: Record<number, [number, number]>;
+  items: number[];
+}
+
+export interface GearRules {
+  /** Weapons/armors/items obtainable before this fight in the story. Sandbox ignores these. */
+  weapons: number[];
+  armors: number[];
+  items: number[];
+  /** Ids that exist only once in the story (can't be equipped twice). */
+  unique: { weapons: number[]; armors: number[] };
+  defaults: Loadout;
+}
 
 export interface FightDef {
   id: string;
   name: string;
   chapter: number;
+  /** Battle idle sprite shown in the menus (extracted to /ui/sprites). */
+  sprite: string;
   /** Music files (from DELTARUNE/mus) this fight can play, including game over. */
   music: string[];
   variants?: FightVariant[];
   /** Party character ids in slot order (1 Kris, 2 Susie, 3 Ralsei, 4 Noelle). */
   party: number[];
-  /** Number of selectable attacks for Single Attack mode (0 = not supported yet). */
+  /** Attacks for Single Attack mode, in the boss's own attack ids. Empty = mode unavailable. */
   attacks: { id: number; name: string }[];
+  /** Phase starts. Empty = whole fight only. */
   phases: { id: number; name: string }[];
+  modes: ModeId[];
+  gear: GearRules;
   available: boolean;
 }
+
+const CH1_CASTLE: GearRules = {
+  weapons: [1, 2, 3, 5, 6, 9, 10],
+  armors: [1, 2, 4, 5],
+  items: [1, 2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 15],
+  unique: { weapons: [9], armors: [2, 4, 5] },
+  defaults: {
+    weapons: { 1: 1, 2: 2, 3: 3 },
+    armors: { 1: [0, 0], 2: [0, 0], 3: [0, 0] },
+    items: [],
+  },
+};
+
+const PENDING: GearRules = { weapons: [], armors: [], items: [], unique: { weapons: [], armors: [] }, defaults: { weapons: {}, armors: {}, items: [] } };
 
 export const FIGHTS: FightDef[] = [
   {
     id: 'jevil',
     name: 'JEVIL',
     chapter: 1,
+    sprite: 'boss_jevil',
     music: ['joker.ogg', 'prejoker.ogg', 'AUDIO_DEFEAT.ogg'],
     party: [1, 2, 3],
     attacks: [],
     phases: [],
+    modes: ['normal', 'hitless', 'practice'],
+    gear: CH1_CASTLE,
     available: true,
   },
-  { id: 'king', name: 'KING', chapter: 1, music: ['kingboss.ogg', 'AUDIO_DEFEAT.ogg'], party: [1, 2, 3], attacks: [], phases: [], available: false },
-  { id: 'knight', name: 'ROARING KNIGHT', chapter: 3, music: [], party: [1, 2, 3], attacks: [], phases: [], available: false },
+  { id: 'king', name: 'KING', chapter: 1, sprite: 'boss_king', music: ['kingboss.ogg', 'AUDIO_DEFEAT.ogg'], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: CH1_CASTLE, available: false },
+  { id: 'knight', name: 'ROARING KNIGHT', chapter: 3, sprite: 'boss_knight', music: [], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: PENDING, available: false },
   {
-    id: 'spamton_neo', name: 'SPAMTON NEO', chapter: 2, music: [], party: [1, 2, 3], attacks: [], phases: [], available: false,
+    id: 'spamton_neo', name: 'SPAMTON NEO', chapter: 2, sprite: 'boss_spamton_neo', music: [], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: PENDING, available: false,
     variants: [{ id: 'normal', name: 'NORMAL' }, { id: 'snowgrave', name: 'SNOWGRAVE' }],
   },
-  { id: 'queen', name: 'QUEEN', chapter: 2, music: [], party: [1, 2, 3], attacks: [], phases: [], available: false },
-  { id: 'tenna', name: 'TENNA', chapter: 3, music: [], party: [1, 2, 3], attacks: [], phases: [], available: false },
-  { id: 'titan', name: 'TITAN', chapter: 4, music: [], party: [1, 2, 3], attacks: [], phases: [], available: false },
-  { id: 'gerson', name: 'GERSON', chapter: 4, music: [], party: [1, 2, 3], attacks: [], phases: [], available: false },
-  { id: 'flowery', name: 'FLOWERY', chapter: 5, music: [], party: [1, 2, 3], attacks: [], phases: [], available: false },
+  { id: 'queen', name: 'QUEEN', chapter: 2, sprite: 'boss_queen', music: [], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: PENDING, available: false },
+  { id: 'tenna', name: 'TENNA', chapter: 3, sprite: 'boss_tenna', music: [], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: PENDING, available: false },
+  { id: 'titan', name: 'TITAN', chapter: 4, sprite: 'boss_titan', music: [], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: PENDING, available: false },
+  { id: 'gerson', name: 'GERSON', chapter: 4, sprite: 'boss_gerson', music: [], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: PENDING, available: false },
+  { id: 'flowery', name: 'FLOWERY', chapter: 5, sprite: 'boss_flowery', music: [], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: PENDING, available: false },
   {
-    id: 'pink', name: 'PINK', chapter: 5, music: [], party: [1, 2, 3], attacks: [], phases: [], available: false,
+    id: 'pink', name: 'PINK', chapter: 5, sprite: 'boss_pink', music: [], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: PENDING, available: false,
     variants: [{ id: 'easy', name: 'EASY' }, { id: 'normal', name: 'NORMAL' }, { id: 'harder', name: 'HARDER BOMBS' }],
   },
 ];
+
+export const MODE_NAMES: Record<ModeId, string> = {
+  normal: 'NORMAL',
+  hitless: 'HITLESS',
+  practice: 'PRACTICE',
+  single: 'SINGLE ATTACK',
+  endless: 'ENDLESS',
+};
+
+export const CHAR_NAMES: Record<number, string> = { 1: 'KRIS', 2: 'SUSIE', 3: 'RALSEI', 4: 'NOELLE' };
+export const CHAR_HEADS: Record<number, string> = { 1: 'spr_headkris', 2: 'spr_headsusie', 3: 'spr_headralsei', 4: 'spr_headnoelle' };

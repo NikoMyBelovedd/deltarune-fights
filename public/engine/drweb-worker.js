@@ -7,6 +7,8 @@ let keyDownPtr = 0;
 let keyUpPtr = 0;
 let running = false;
 let opfsMounted = false;
+let paused = false;
+const keyDownAt = {};
 
 const post = (msg, transfer) => self.postMessage(msg, transfer || []);
 
@@ -80,7 +82,7 @@ function startAudioPump(sab, idxSab, sampleRate) {
   const heapPtr = Module._malloc(heapFrames * 2 * 4);
   const target = Math.round(sampleRate * 0.06); // keep ~60ms buffered
   const pump = () => {
-    if (!running) return;
+    if (!running || paused) return;
     let w = Atomics.load(idx, 0);
     const r = Atomics.load(idx, 1);
     let want = target - (w - r);
@@ -149,9 +151,23 @@ self.onmessage = async (ev) => {
       break;
     case 'key': {
       if (!Module || !keyDownPtr) break;
-      Module.HEAPU8[(msg.down ? keyDownPtr : keyUpPtr) + msg.code] = 1;
+      // Every press must be visible for at least one game frame (33ms), or the game never sees a quick tap.
+      const now = performance.now();
+      if (msg.down) {
+        keyDownAt[msg.code] = now;
+        Module.HEAPU8[keyDownPtr + msg.code] = 1;
+      } else {
+        const wait = 40 - (now - (keyDownAt[msg.code] ?? 0));
+        const code = msg.code;
+        if (wait > 0) setTimeout(() => { Module.HEAPU8[keyUpPtr + code] = 1; }, wait);
+        else Module.HEAPU8[keyUpPtr + code] = 1;
+      }
       break;
     }
+    case 'pause':
+      paused = !!msg.paused;
+      if (Module && running) Module._setPaused(paused ? 1 : 0);
+      break;
     case 'stop':
       if (Module && running) Module._stopRunner();
       running = false;

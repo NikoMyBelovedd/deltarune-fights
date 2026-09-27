@@ -89,6 +89,10 @@ export class GameHost {
     this.worker?.postMessage({ type: 'key', code, down });
   }
 
+  pause(paused: boolean): void {
+    this.worker?.postMessage({ type: 'pause', paused });
+  }
+
   setVolume(v: number): void {
     this.volume = v;
     this.node?.port.postMessage({ volume: v });
