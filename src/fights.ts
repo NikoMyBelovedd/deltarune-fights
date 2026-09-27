@@ -76,7 +76,17 @@ export const FIGHTS: FightDef[] = [
     gear: CH1_CASTLE,
     available: true,
   },
-  { id: 'king', name: 'KING', chapter: 1, sprite: 'boss_king', music: ['kingboss.ogg', 'AUDIO_DEFEAT.ogg'], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: CH1_CASTLE, available: false },
+  {
+    id: 'king', name: 'KING', chapter: 1, sprite: 'boss_king',
+    music: ['wind.ogg', 'kingboss.ogg', 'GALLERY.ogg', 'lancer.ogg', 'friendship.ogg', 'AUDIO_DEFEAT.ogg'],
+    party: [1, 2, 3],
+    attacks: [
+      { id: 0, name: 'SPADE VOLLEY' }, { id: 1, name: 'CHAIN KING' }, { id: 2, name: 'SPADE RAIN' }, { id: 3, name: 'BOUNCING BOX' },
+      { id: 4, name: 'CHAIN KING II' }, { id: 5, name: 'CHAIN SWING' }, { id: 6, name: 'SPADE SPIRAL' }, { id: 7, name: 'BOUNCING BOX II' },
+      { id: 8, name: 'SPADE STORM' }, { id: 9, name: 'CHAIN KING III' }, { id: 10, name: 'CHAIN SWING II' },
+    ],
+    phases: [], modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: CH1_CASTLE, available: true,
+  },
   { id: 'knight', name: 'ROARING KNIGHT', chapter: 3, sprite: 'boss_knight', music: [], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: PENDING, available: false },
   {
     id: 'spamton_neo', name: 'SPAMTON NEO', chapter: 2, sprite: 'boss_spamton_neo', music: [], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: PENDING, available: false,

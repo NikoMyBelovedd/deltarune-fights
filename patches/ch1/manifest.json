@@ -49,6 +49,17 @@
       "op": "prepend",
       "code": "gml_Object_obj_joker_Step_0",
       "text": "drweb_jevil_step();"
+    },
+    {
+      "op": "find",
+      "code": "gml_Object_obj_kingcutscene_Step_0",
+      "find": "room_goto_next();",
+      "replace": "drweb_finish(\"king\");"
+    },
+    {
+      "op": "prepend",
+      "code": "gml_Object_obj_king_boss_Step_0",
+      "text": "drweb_king_step();"
     }
   ]
 }

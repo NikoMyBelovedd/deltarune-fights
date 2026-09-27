@@ -23,6 +23,16 @@ function drweb_boot_fight()
         random_set_seed(global.drweb_seed);
     switch (global.drweb_boss)
     {
+        case "king":
+            drweb_ch1_castle_state();
+            global.plot = 175;
+            global.flag[40] = 0;
+            global.flag[43] = 0;
+            if (global.drweb_intro == 0 || global.drweb_attempt > 0)
+                global.tempflag[8] = 1;
+            drweb_emit("start", "king");
+            room_goto(room_cc_kingbattle);
+            break;
         default:
             drweb_ch1_castle_state();
             global.flag[241] = 5;
@@ -65,17 +75,30 @@ function drweb_jevil_step()
     if (global.monster[myself] == 1 && global.mnfight == 1 && talked == 0)
     {
         drweb_turns += 1;
-        var _a = -1;
-        if (global.drweb_mode == "single")
-            _a = global.drweb_attack;
-        else if (global.drweb_mode == "endless")
-        {
-            _a = drweb_bag_next(16);
-            if (drweb_turns > 16)
-                global.monsterat[myself] = min(global.monsterat[myself] + 0.5, 20);
-        }
+        var _a = drweb_turn_attack(16);
+        if (global.drweb_mode == "endless" && drweb_turns > 16)
+            global.monsterat[myself] = min(global.monsterat[myself] + 0.5, 20);
         if (_a >= 0)
             jturn = drweb_jevil_jturn(_a);
-        drweb_emit("attack", _a);
+    }
+}
+
+// ---- King ----
+// Runs at the top of obj_king_boss's Step. kturn picks the speech line, then attack = kturn + 1 (attacks 1..11).
+function drweb_king_step()
+{
+    if (!variable_instance_exists(id, "drweb_init"))
+    {
+        drweb_init = 1;
+        drweb_turns = 0;
+    }
+    if (global.monster[myself] == 1 && global.mnfight == 1 && talked == 0)
+    {
+        drweb_turns += 1;
+        var _a = drweb_turn_attack(11);
+        if (global.drweb_mode == "endless" && drweb_turns > 11)
+            global.monsterat[myself] = min(global.monsterat[myself] + 0.5, 20);
+        if (_a >= 0)
+            kturn = _a;
     }
 }

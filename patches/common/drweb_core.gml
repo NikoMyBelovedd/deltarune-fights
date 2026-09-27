@@ -149,3 +149,16 @@ function drweb_bag_next(_n)
     array_resize(global.drweb_bag, array_length(global.drweb_bag) - 1);
     return _v;
 }
+
+// Call once at the start of each enemy turn (inside the boss's "mnfight == 1 && talked == 0" moment).
+// Returns the attack index to force (0..count-1) or -1 to let the boss choose, and reports it.
+function drweb_turn_attack(_count)
+{
+    var _a = -1;
+    if (global.drweb_mode == "single")
+        _a = global.drweb_attack;
+    else if (global.drweb_mode == "endless")
+        _a = drweb_bag_next(_count);
+    drweb_emit("attack", _a);
+    return _a;
+}
