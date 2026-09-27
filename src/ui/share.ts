@@ -1,5 +1,6 @@
 // Compact, URL-safe setup codes: boss, mode, variant, attack/phase, sandbox, gear, items, stats.
 import type { FightDef, Loadout, ModeId } from '../fights.ts';
+import type { Dials } from '../play.ts';
 
 interface ShareSource {
   fight: FightDef;
@@ -10,6 +11,7 @@ interface ShareSource {
   sandbox: boolean;
   loadout: Loadout;
   stats: Record<number, { hp?: number; at?: number; df?: number; mag?: number }>;
+  dials: Dials;
 }
 
 export interface Shared {
@@ -21,6 +23,7 @@ export interface Shared {
   sandbox: boolean;
   loadout: Loadout;
   stats?: ShareSource['stats'];
+  dials?: Partial<Dials>;
 }
 
 const b64 = (s: string) => btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -31,6 +34,7 @@ export function encodeShare(s: ShareSource): string {
     b: s.fight.id, m: s.mode, v: s.variant, a: s.attack, p: s.phase, x: s.sandbox ? 1 : 0,
     w: s.loadout.weapons, r: s.loadout.armors, i: s.loadout.items.filter((n) => n > 0),
     ...(s.sandbox && Object.keys(s.stats).length ? { s: s.stats } : {}),
+    ...(s.dials.speed !== 100 || s.dials.damage !== 100 || s.dials.iframes !== 100 ? { d: s.dials } : {}),
   };
   return b64(JSON.stringify(payload));
 }
@@ -43,7 +47,7 @@ export function decodeShare(code: string): Shared | null {
     while (items.length < 12) items.push(0);
     return {
       boss: p.b, mode: p.m ?? 'normal', variant: p.v ?? '', attack: Number(p.a ?? -1), phase: Number(p.p ?? 0),
-      sandbox: !!p.x, loadout: { weapons: p.w ?? {}, armors: p.r ?? {}, items }, stats: p.s,
+      sandbox: !!p.x, loadout: { weapons: p.w ?? {}, armors: p.r ?? {}, items }, stats: p.s, dials: p.d,
     };
   } catch {
     return null;

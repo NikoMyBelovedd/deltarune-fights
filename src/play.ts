@@ -2,6 +2,10 @@
 import type { BundleManifest, GameHost } from './engine/host.ts';
 import type { FightDef } from './fights.ts';
 
+export interface Dials { speed: number; damage: number; iframes: number }
+export const DEFAULT_DIALS: Dials = { speed: 100, damage: 100, iframes: 100 };
+export const dialsModified = (d: Dials) => d.speed !== 100 || d.damage !== 100 || d.iframes !== 100;
+
 export interface FightConfig {
   fight: FightDef;
   variant: string;
@@ -14,12 +18,12 @@ export interface FightConfig {
   armors: Record<number, [number, number]>;
   items: number[];
   stats?: Record<number, { hp?: number; at?: number; df?: number; mag?: number }>;
-  dials: { bulletMult: number; cooldown: number };
+  dials: Dials;
 }
 
 export function configToIni(c: FightConfig): string {
   const lines = ['[fight]', `boss=${c.fight.id}`, `variant=${c.variant}`, `mode=${c.mode}`, `intro=${c.intro ? 1 : 0}`,
-    `attack=${c.attack}`, `phase=${c.phase}`, `seed=${c.seed}`, '[dials]', `bulletmult=${c.dials.bulletMult}`, `cooldown=${c.dials.cooldown}`, '[party]'];
+    `attack=${c.attack}`, `phase=${c.phase}`, `seed=${c.seed}`, '[dials]', `speed=${c.dials.speed}`, `damage=${c.dials.damage}`, `iframes=${c.dials.iframes}`, '[party]'];
   for (const [ch, w] of Object.entries(c.weapons)) lines.push(`weapon${ch}=${w}`);
   for (const [ch, [a, b]] of Object.entries(c.armors)) lines.push(`armor${ch}a=${a}`, `armor${ch}b=${b}`);
   lines.push('[items]');

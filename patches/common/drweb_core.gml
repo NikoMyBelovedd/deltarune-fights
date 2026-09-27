@@ -16,8 +16,9 @@ function drweb_load_config()
     global.drweb_attack = ini_read_real("fight", "attack", -1);
     global.drweb_phase = ini_read_real("fight", "phase", 0);
     global.drweb_seed = ini_read_real("fight", "seed", 0);
-    global.drweb_bulletmult = ini_read_real("dials", "bulletmult", 1);
-    global.drweb_cooldown = ini_read_real("dials", "cooldown", 100);
+    global.drweb_speed = ini_read_real("dials", "speed", 100);
+    global.drweb_damage = ini_read_real("dials", "damage", 100);
+    global.drweb_iframes = ini_read_real("dials", "iframes", 100);
     for (var _c = 1; _c <= 4; _c++)
     {
         global.drweb_weapon[_c] = ini_read_real("party", "weapon" + string(_c), -1);
@@ -71,6 +72,21 @@ function drweb_apply_loadout()
     scr_iteminfo_all();
     for (var _c = 0; _c <= 4; _c++)
         global.hp[_c] = global.maxhp[_c];
+    drweb_apply_dials();
+}
+
+// Dials: game speed (via the runner's frame rate), damage taken, and post-hit invincibility.
+function drweb_apply_dials()
+{
+    game_set_speed(30 * global.drweb_speed / 100, gamespeed_fps);
+    global.invc = global.invc * global.drweb_iframes / 100;
+}
+
+function drweb_scale_damage(_d)
+{
+    if (global.drweb_damage == 100)
+        return _d;
+    return max(1, round(_d * global.drweb_damage / 100));
 }
 
 // Called from scr_damage whenever a party member actually loses HP.

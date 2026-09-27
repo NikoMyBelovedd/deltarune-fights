@@ -2,7 +2,7 @@
 import { GameHost, type HostEvent } from '../engine/host.ts';
 import { ACTION_VK, ACTIONS, DEFAULT_BINDINGS, InputRouter, VK, type Action } from '../engine/input.ts';
 import { CHAR_HEADS, CHAR_NAMES, FIGHTS, MODE_NAMES, type FightDef, type Loadout, type ModeId } from '../fights.ts';
-import { startFight, type FightConfig } from '../play.ts';
+import { DEFAULT_DIALS, dialsModified, startFight, type Dials, type FightConfig } from '../play.ts';
 import { store } from '../store.ts';
 import { C, Gfx } from './gfx.ts';
 import { decodeShare, encodeShare } from './share.ts';
@@ -22,6 +22,7 @@ interface Setup {
   sandbox: boolean;
   loadout: Loadout;
   stats: Record<number, { hp?: number; at?: number; df?: number; mag?: number }>;
+  dials: Dials;
 }
 
 interface Screen {
@@ -197,7 +198,7 @@ export class App {
 
   // ---------------- running fights ----------------
   async launch(setup: Setup): Promise<void> {
-    store.saveLoadout(setup.fight.id, { loadout: setup.loadout, mode: setup.mode, variant: setup.variant, attack: setup.attack, phase: setup.phase, intro: setup.intro, sandbox: setup.sandbox, stats: setup.stats });
+    store.saveLoadout(setup.fight.id, { loadout: setup.loadout, mode: setup.mode, variant: setup.variant, attack: setup.attack, phase: setup.phase, intro: setup.intro, sandbox: setup.sandbox, stats: setup.stats, dials: setup.dials });
     const introKey = `${setup.fight.id}:${setup.variant}`;
     const playIntro = setup.intro && (setup.mode === 'normal' || setup.mode === 'practice');
     const cfg: FightConfig = {
@@ -212,7 +213,7 @@ export class App {
       armors: setup.loadout.armors,
       items: setup.loadout.items,
       stats: setup.sandbox ? setup.stats : undefined,
-      dials: { bulletMult: 1, cooldown: 100 },
+      dials: setup.dials,
     };
     store.settings.seenIntro[introKey] = true;
     store.saveSettings();
@@ -229,7 +230,7 @@ export class App {
   }
 
   recordKey(s: Setup): string {
-    return `${s.fight.id}|${s.variant}|${s.mode}`;
+    return `${s.fight.id}|${s.variant}|${s.mode}${dialsModified(s.dials) ? '|mod' : ''}`;
   }
 
   private onHost(e: HostEvent): void {
@@ -326,10 +327,10 @@ export class App {
     this.popTo((s) => s instanceof SetupScreen);
   }
 
-  restartGame(): void {
+  restartGame(skipIntro = false): void {
     const setup = this.run?.setup;
     this.quitGame();
-    if (setup) void this.launch(setup);
+    if (setup) void this.launch(skipIntro ? { ...setup, intro: false } : setup);
   }
 
   applySettings(): void {
@@ -445,7 +446,7 @@ class BossSelectScreen implements Screen {
   }
 }
 
-interface SavedSetup { loadout: Loadout; mode: ModeId; variant: string; attack: number; phase: number; intro: boolean; sandbox: boolean; stats: Setup['stats'] }
+interface SavedSetup { loadout: Loadout; mode: ModeId; variant: string; attack: number; phase: number; intro: boolean; sandbox: boolean; stats: Setup['stats']; dials?: Dials }
 
 class SetupScreen implements Screen {
   sel = 0;
@@ -460,16 +461,17 @@ class SetupScreen implements Screen {
       variant: fight.variants?.[0]?.id ?? '',
       attack: fight.attacks[0]?.id ?? -1,
       phase: 0,
-      intro: true,
+      intro: !store.settings.seenIntro[`${fight.id}:${fight.variants?.[0]?.id ?? ''}`],
       sandbox: false,
       loadout: structuredClone(fight.gear.defaults),
       stats: {},
+      dials: { ...DEFAULT_DIALS },
     };
-    if (saved) Object.assign(base, { ...saved, fight, loadout: saved.loadout ?? base.loadout });
+    if (saved) Object.assign(base, { ...saved, fight, loadout: saved.loadout ?? base.loadout, dials: { ...DEFAULT_DIALS, ...saved.dials } });
     if (shared) {
       Object.assign(base, {
         mode: shared.mode, variant: shared.variant, attack: shared.attack, phase: shared.phase, sandbox: shared.sandbox,
-        loadout: shared.loadout, stats: shared.stats ?? {},
+        loadout: shared.loadout, stats: shared.stats ?? {}, dials: { ...DEFAULT_DIALS, ...shared.dials },
       });
     }
     if (!fight.modes.includes(base.mode)) base.mode = fight.modes[0];
@@ -488,6 +490,8 @@ class SetupScreen implements Screen {
     rows.push({ id: 'intro', label: 'INTRO', value: s.mode === 'normal' || s.mode === 'practice' ? (s.intro ? 'ON' : 'OFF') : 'SKIPPED', dim: !(s.mode === 'normal' || s.mode === 'practice') });
     rows.push({ id: 'equip', label: 'EQUIPMENT' });
     rows.push({ id: 'items', label: 'ITEMS' });
+    if (s.sandbox) rows.push({ id: 'stats', label: 'STATS' });
+    rows.push({ id: 'dials', label: 'DIALS', value: dialsModified(s.dials) ? 'CUSTOM' : 'DEFAULT' });
     rows.push({ id: 'sandbox', label: 'SANDBOX', value: s.sandbox ? 'ON' : 'OFF' });
     rows.push({ id: 'share', label: 'SHARE SETUP' });
     rows.push({ id: 'start', label: 'START' });
@@ -525,6 +529,7 @@ class SetupScreen implements Screen {
       equip: 'Weapons and armor for each party member.',
       items: 'What you carry into battle.',
       sandbox: 'ON: any gear from this chapter + stat editing.',
+      dials: 'Game speed, damage taken, invincibility.',
       share: 'Z: copy a link.  C: paste a code.',
       start: '',
       variant: 'Which version of the fight.',
@@ -552,6 +557,8 @@ class SetupScreen implements Screen {
     if (k !== 'confirm' && k !== 'menu') return;
     if (row.id === 'equip' && k === 'confirm') { g.sfx('snd_select'); this.app.push(new EquipScreen(this.app, s)); }
     if (row.id === 'items' && k === 'confirm') { g.sfx('snd_select'); this.app.push(new ItemsScreen(this.app, s)); }
+    if (row.id === 'stats' && k === 'confirm') { g.sfx('snd_select'); this.app.push(new StatsScreen(this.app, s)); }
+    if (row.id === 'dials' && k === 'confirm') { g.sfx('snd_select'); this.app.push(new DialsScreen(this.app, s)); }
     if (row.id === 'share') {
       if (k === 'confirm') {
         const url = `${location.origin}${location.pathname}?s=${encodeShare(s)}`;
@@ -561,7 +568,7 @@ class SetupScreen implements Screen {
         const code = window.prompt('Paste a setup link or code:');
         const dec = code ? decodeShare(code.includes('s=') ? new URL(code, location.href).searchParams.get('s') ?? '' : code.trim()) : null;
         if (dec && dec.boss === s.fight.id) {
-          Object.assign(s, { mode: dec.mode, variant: dec.variant, attack: dec.attack, phase: dec.phase, sandbox: dec.sandbox, loadout: dec.loadout, stats: dec.stats ?? {} });
+          Object.assign(s, { mode: dec.mode, variant: dec.variant, attack: dec.attack, phase: dec.phase, sandbox: dec.sandbox, loadout: dec.loadout, stats: dec.stats ?? {}, dials: { ...DEFAULT_DIALS, ...dec.dials } });
           this.msg = 'SETUP LOADED!'; this.msgT = 60; g.sfx('snd_equip');
         } else if (code) { this.msg = 'BAD CODE'; this.msgT = 60; g.sfx('snd_error'); }
       }
@@ -668,6 +675,98 @@ class EquipScreen implements Screen {
         this.app.push(new PickScreen(this.app, 'ARMOR', list, cur, true, (id) => { arm[sl.idx] = id; }));
       }
     }
+  }
+}
+
+class DialsScreen implements Screen {
+  sel = 0;
+  constructor(private app: App, private s: Setup) {}
+  private rows() {
+    const d = this.s.dials;
+    const iframe = d.iframes === 100 ? 'NORMAL' : `${d.iframes}%`;
+    return [
+      { id: 'speed', label: 'GAME SPEED', value: `< ${d.speed}% >` },
+      { id: 'damage', label: 'DAMAGE TAKEN', value: `< ${d.damage}% >` },
+      { id: 'iframes', label: 'INVINCIBILITY', value: `< ${iframe} >` },
+      { id: 'reset', label: 'RESET' },
+      { id: 'back', label: 'BACK' },
+    ];
+  }
+  draw(g: Gfx): void {
+    g.text('fnt_mainbig', 'DIALS', 320, 16, C.white, 1, 1);
+    g.darkbox(40, 70, 600, 330);
+    drawOptions(g, this.rows(), this.sel, 70, 96, 44, 360);
+    g.darkbox(40, 346, 600, 460);
+    const help = [
+      'Slows down or speeds up the whole game. Great for learning patterns.',
+      'Scales every hit you take. Hitless still fails on any hit.',
+      'How long you stay invincible after getting hit.',
+      'Back to the real game.',
+      '',
+    ][this.sel];
+    g.wrap('fnt_mainbig', help, 520).slice(0, 2).forEach((l, i) => g.text('fnt_mainbig', l, 64, 364 + i * 32));
+    if (dialsModified(this.s.dials)) g.text('fnt_main', 'Records with custom dials are kept separately.', 320, 436, C.gray, 1, 1);
+  }
+  key(k: MenuKey): void {
+    const g = this.app.g;
+    const rows = this.rows();
+    const d = this.s.dials;
+    if (k === 'up' || k === 'down') { this.sel = (this.sel + (k === 'up' ? -1 : 1) + rows.length) % rows.length; g.sfx('snd_menumove'); return; }
+    if (k === 'cancel') { this.app.pop(); return; }
+    const dir = k === 'left' ? -1 : k === 'right' ? 1 : 0;
+    const step = (v: number, list: number[]) => list[Math.max(0, Math.min(list.length - 1, list.indexOf(v) + dir))] ?? v;
+    const id = rows[this.sel].id;
+    if (id === 'speed' && dir) d.speed = step(d.speed, [25, 50, 75, 100, 125, 150, 200]);
+    if (id === 'damage' && dir) d.damage = step(d.damage, [0, 25, 50, 100, 150, 200, 300]);
+    if (id === 'iframes' && dir) d.iframes = step(d.iframes, [25, 50, 100, 150, 200, 300]);
+    if (dir) g.sfx('snd_menumove');
+    if (id === 'reset' && k === 'confirm') { Object.assign(d, DEFAULT_DIALS); g.sfx('snd_equip'); }
+    if (id === 'back' && k === 'confirm') this.app.pop();
+  }
+}
+
+class StatsScreen implements Screen {
+  col = 0;
+  row = 0;
+  constructor(private app: App, private s: Setup) {}
+  private static KEYS = ['hp', 'at', 'df', 'mag'] as const;
+  draw(g: Gfx): void {
+    g.text('fnt_mainbig', 'STATS (SANDBOX)', 320, 16, C.white, 1, 1);
+    const party = this.s.fight.party;
+    const colW = 600 / party.length;
+    party.forEach((c, i) => {
+      const x = 20 + i * colW;
+      g.darkbox(x, 60, x + colW - 8, 380);
+      g.sprite(CHAR_HEADS[c], 0, x + 24, 80);
+      g.text('fnt_mainbig', CHAR_NAMES[c], x + 70, 80, i === this.col ? C.yellow : C.white);
+      StatsScreen.KEYS.forEach((k, j) => {
+        const y = 140 + j * 56;
+        const v = this.s.stats[c]?.[k];
+        const on = i === this.col && j === this.row;
+        g.text('fnt_mainbig', k.toUpperCase(), x + 40, y, on ? C.yellow : C.white);
+        g.text('fnt_mainbig', v === undefined ? 'GAME' : `< ${v} >`, x + colW - 30, y, v === undefined ? C.gray : C.white, 1, 2);
+        if (on) g.heart(x + 16, y + 8);
+      });
+    });
+    g.text('fnt_main', 'LEFT/RIGHT: CHANGE   C: BACK TO GAME VALUE   X: DONE', 320, 420, C.gray, 1, 1);
+  }
+  key(k: MenuKey): void {
+    const g = this.app.g;
+    const party = this.s.fight.party;
+    const c = party[this.col];
+    const key = StatsScreen.KEYS[this.row];
+    if (k === 'up' || k === 'down') { this.row = (this.row + (k === 'up' ? -1 : 1) + 4) % 4; g.sfx('snd_menumove'); return; }
+    if (k === 'cancel') { this.app.pop(); return; }
+    if (k === 'confirm') { this.col = (this.col + 1) % party.length; g.sfx('snd_menumove'); return; }
+    const st = (this.s.stats[c] ??= {});
+    if (k === 'menu') { delete st[key]; g.sfx('snd_equip'); return; }
+    const dir = k === 'left' ? -1 : k === 'right' ? 1 : 0;
+    if (!dir) return;
+    const base = key === 'hp' ? 100 : key === 'at' ? 10 : key === 'df' ? 2 : 0;
+    const stepSize = key === 'hp' ? 10 : 1;
+    const max = key === 'hp' ? 999 : 99;
+    st[key] = Math.max(key === 'hp' ? 1 : 0, Math.min(max, (st[key] ?? base) + dir * stepSize));
+    g.sfx('snd_menumove');
   }
 }
 
@@ -782,25 +881,33 @@ class LoadingScreen implements Screen {
 class PauseScreen implements Screen {
   overlay = true;
   sel = 0;
-  opts = ['RESUME', 'RESTART', 'QUIT'];
-  constructor(private app: App) {}
+  opts: string[];
+  constructor(private app: App) {
+    const inIntro = !!app.run && !app.run.battleAt && app.run.setup.intro && app.run.restarts === 0;
+    this.opts = inIntro ? ['RESUME', 'SKIP INTRO', 'RESTART', 'QUIT'] : ['RESUME', 'RESTART', 'QUIT'];
+  }
   draw(g: Gfx): void {
     g.rect(0, 0, 640, 480, C.black, 0.6);
-    g.darkbox(170, 130, 470, 350);
-    g.text('fnt_mainbig', 'PAUSED', 320, 150, C.white, 1, 1);
-    drawOptions(g, this.opts.map((label) => ({ label })), this.sel, 220, 210, 40);
+    const h = 100 + this.opts.length * 40;
+    const top = 240 - h / 2;
+    g.darkbox(170, top, 470, top + h);
+    g.text('fnt_mainbig', 'PAUSED', 320, top + 20, C.white, 1, 1);
+    drawOptions(g, this.opts.map((label) => ({ label })), this.sel, 220, top + 66, 40);
     const r = this.app.run;
-    if (r) g.text('fnt_main', `TIME ${fmtTime(this.app.elapsed())}   HITS ${r.hits}`, 320, 324, C.gray, 1, 1);
+    if (r) g.text('fnt_main', `TIME ${fmtTime(this.app.elapsed())}   HITS ${r.hits}`, 320, top + h - 26, C.gray, 1, 1);
   }
   key(k: MenuKey): void {
     const g = this.app.g;
-    if (k === 'up' || k === 'down') { this.sel = (this.sel + (k === 'up' ? -1 : 1) + 3) % 3; g.sfx('snd_menumove'); }
+    const n = this.opts.length;
+    if (k === 'up' || k === 'down') { this.sel = (this.sel + (k === 'up' ? -1 : 1) + n) % n; g.sfx('snd_menumove'); }
     if (k === 'cancel') this.resume();
     if (k === 'confirm') {
       g.sfx('snd_select');
-      if (this.sel === 0) this.resume();
-      if (this.sel === 1) this.app.restartGame();
-      if (this.sel === 2) this.app.quitGame();
+      const o = this.opts[this.sel];
+      if (o === 'RESUME') this.resume();
+      if (o === 'SKIP INTRO') this.app.restartGame(true);
+      if (o === 'RESTART') this.app.restartGame();
+      if (o === 'QUIT') this.app.quitGame();
     }
   }
   resume(): void { this.app.resumeGame(); }

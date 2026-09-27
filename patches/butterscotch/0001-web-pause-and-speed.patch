@@ -12,7 +12,7 @@ index 9fc3dbf..963ee0e 100644
              "-sOFFSCREEN_FRAMEBUFFER=1"
              "-sMIN_WEBGL_VERSION=2"
 diff --git a/src/web/main.c b/src/web/main.c
-index 6375bee..ea3fbb0 100644
+index 6375bee..d360c24 100644
 --- a/src/web/main.c
 +++ b/src/web/main.c
 @@ -18,6 +18,12 @@ static EMSCRIPTEN_WEBGL_CONTEXT_HANDLE ctx = 0;
@@ -41,3 +41,16 @@ index 6375bee..ea3fbb0 100644
          double frameStartMs = emscripten_get_now();
          gRunner->deltaTime = (frameStartMs - lastFrameStartMs) * 1000.0;
          lastFrameStartMs = frameStartMs;
+@@ -164,8 +176,10 @@ void* loop() {
+ 
+         // Frame pacing: sleep until the next frame is due, based on the room's speed.
+         // emscripten_get_now() returns milliseconds (performance.now()) and works in workers.
+-        if (gRunner->currentRoom != nullptr && gRunner->currentRoom->speed > 0) {
+-            double targetFrameTimeMs = 1000.0 / (double) gRunner->currentRoom->speed;
++        // deltaruneWEB: honour game_set_speed (the game-speed dial), like the desktop loop does.
++        double effectiveGameSpeed = Runner_getEffectiveGameSpeed(gRunner);
++        if (effectiveGameSpeed > 0.0) {
++            double targetFrameTimeMs = 1000.0 / effectiveGameSpeed;
+             double nextFrameTimeMs = lastFrameStartMs + targetFrameTimeMs;
+             double remainingMs = nextFrameTimeMs - emscripten_get_now();
+             // Sleep for most of the remaining time, then spin-wait for precision.

@@ -23,7 +23,7 @@ Chapter 1 (Jevil and King) is the reference implementation: `patches/ch1/`, `pat
 ## Required hooks per chapter (mirror `patches/ch1/manifest.json`)
 
 - `obj_initializer2_Step_0`: replace the final `room_goto(...)` with `drweb_boot_fight();`. The chapter's own init (localization, `scr_gamestart`, audio loading) must still run first.
-- `scr_damage`: call `drweb_on_hit(tdamage, target);` right where HP is actually reduced (only on real damage).
+- `scr_damage`: call `drweb_on_hit(tdamage, target);` right where HP is actually reduced (only on real damage), and wrap the raw damage with `drweb_scale_damage(...)` where `tdamage` is first computed (the damage dial).
 - `scr_gameover`: `if (drweb_on_gameover()) exit;` at the top.
 - `scr_tempload`: `drweb_restart("gameover"); exit;` at the top, so continuing after a game over retries the fight.
 - `obj_battlecontroller_Create_0`: append `drweb_emit("battle", global.encounterno);`.

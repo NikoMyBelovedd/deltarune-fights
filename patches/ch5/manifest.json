@@ -3,7 +3,7 @@
     {
       "op": "replace",
       "code": "gml_GlobalScript_drweb",
-      "file": "drweb_ch1.gml"
+      "file": "drweb_ch5.gml"
     },
     {
       "op": "find",
@@ -19,27 +19,15 @@
     },
     {
       "op": "find",
-      "code": "gml_GlobalScript_scr_damage",
-      "find": "tdamage = damage;",
-      "replace": "tdamage = drweb_scale_damage(damage);"
-    },
-    {
-      "op": "find",
       "code": "gml_GlobalScript_scr_gameover",
-      "find": "audio_stop_all();",
-      "replace": "if (drweb_on_gameover())\n        exit;\n    audio_stop_all();"
+      "find": "if (global.flag[35] == 0)\n    {\n        audio_stop_all();",
+      "replace": "if (drweb_on_gameover())\n        exit;\n    if (global.flag[35] == 0)\n    {\n        audio_stop_all();"
     },
     {
       "op": "find",
       "code": "gml_GlobalScript_scr_tempload",
       "find": "filechoicebk3 = global.filechoice;",
       "replace": "drweb_restart(\"gameover\");\n    exit;\n    filechoicebk3 = global.filechoice;"
-    },
-    {
-      "op": "find",
-      "code": "gml_Object_obj_jokerbattleevent_Step_0",
-      "find": "room_goto(room_cc_prison_prejoker);",
-      "replace": "drweb_finish(global.flag[241] == 6 ? \"violence\" : \"pacify\");"
     },
     {
       "op": "append",
@@ -53,19 +41,8 @@
     },
     {
       "op": "prepend",
-      "code": "gml_Object_obj_joker_Step_0",
-      "text": "drweb_jevil_step();"
-    },
-    {
-      "op": "find",
-      "code": "gml_Object_obj_kingcutscene_Step_0",
-      "find": "room_goto_next();",
-      "replace": "drweb_finish(\"king\");"
-    },
-    {
-      "op": "prepend",
-      "code": "gml_Object_obj_king_boss_Step_0",
-      "text": "drweb_king_step();"
+      "code": "gml_Object_obj_ch5_DW29_Step_0",
+      "text": "drweb_flowery_room_step();"
     }
   ]
 }

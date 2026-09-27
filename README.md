@@ -8,7 +8,7 @@ This repository contains **no game files**. Everything game-derived is built loc
 
 ## Build
 
-Requirements: Node 23+, .NET-free (the UndertaleModTool CLI is self-contained), `gh`, `cmake`, `ninja`, and your DELTARUNE install.
+Requirements: Node 23+, `gh`, `cmake`, `ninja`, and your DELTARUNE install. The UndertaleModTool CLI is self-contained.
 
 ```sh
 npm install
