@@ -1,7 +1,8 @@
 // Assembles public/game/chN/ from the patched data.win and the local DELTARUNE install.
 // Usage: node tools/build/bundle.ts [chapters...]
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import { homedir } from 'node:os';
 import { basename, dirname, join, relative } from 'node:path';
 import { FIGHTS } from '../../src/fights.ts';
@@ -26,8 +27,12 @@ function walk(dir: string): string[] {
 const chapters = process.argv.slice(2).map(Number);
 for (const ch of chapters.length ? chapters : [...new Set(FIGHTS.filter((f) => f.available).map((f) => f.chapter))]) {
   const src = join(GAME, `chapter${ch}_windows`);
-  const out = join(ROOT, 'public/game', `ch${ch}`);
+  // Stage everything outside public/, then publish small files as-is and big ones packed.
+  const out = join(ROOT, '.gamedata/stage', `ch${ch}`);
+  const pub = join(ROOT, 'public/game', `ch${ch}`);
   mkdirSync(out, { recursive: true });
+  rmSync(pub, { recursive: true, force: true });
+  mkdirSync(pub, { recursive: true });
   const patched = join(ROOT, '.gamedata/build', `ch${ch}`, 'data.win');
   if (!existsSync(patched)) throw new Error(`missing ${patched}; run tools/patch/build.sh ${ch}`);
 
@@ -48,10 +53,38 @@ for (const ch of chapters.length ? chapters : [...new Set(FIGHTS.filter((f) => f
     else console.warn(`ch${ch}: music not found: ${m}`);
   }
 
+  // Cloudflare Pages rejects files over 25 MiB, so big files are gzipped and split into parts under /packed.
+  const PART = 20 * 1024 * 1024;
+  const packed = join(ROOT, 'public/game', `ch${ch}-packed`);
+  rmSync(packed, { recursive: true, force: true });
+  mkdirSync(packed, { recursive: true });
   const files = walk(out)
     .filter((p) => basename(p) !== 'files.json')
-    .map((p) => ({ path: relative(out, p), size: statSync(p).size, hash: hashFile(p) }));
-  writeFileSync(join(out, 'files.json'), JSON.stringify({ bundle: `ch${ch}`, dataPath: 'data.win', files }, null, 1));
+    .map((p) => {
+      const rel = relative(out, p);
+      const size = statSync(p).size;
+      const hash = hashFile(p);
+      const entry: { path: string; size: number; hash: string; gzip?: boolean; parts?: { url: string; size: number }[] } = { path: rel, size, hash };
+      if (size > 4 * 1024 * 1024 && !rel.endsWith('.ogg')) {
+        const gz = gzipSync(readFileSync(p), { level: 9 });
+        if (gz.length < size * 0.9 || size > PART) {
+          const body = gz.length < size * 0.9 ? gz : readFileSync(p);
+          entry.gzip = body === gz;
+          entry.parts = [];
+          for (let i = 0, n = 0; i < body.length; i += PART, n++) {
+            const name = `${rel.replace(/[\/]/g, '_')}.${hash}.${n}${entry.gzip ? '.gz' : ''}.bin`;
+            writeFileSync(join(packed, name), body.subarray(i, i + PART));
+            entry.parts.push({ url: `/game/ch${ch}-packed/${name}`, size: Math.min(PART, body.length - i) });
+          }
+        }
+      }
+      if (!entry.parts) {
+        mkdirSync(dirname(join(pub, rel)), { recursive: true });
+        copyFileSync(p, join(pub, rel));
+      }
+      return entry;
+    });
+  writeFileSync(join(pub, 'files.json'), JSON.stringify({ bundle: `ch${ch}`, dataPath: 'data.win', files }, null, 1));
   const total = files.reduce((a, f) => a + f.size, 0);
   console.log(`ch${ch}: ${files.length} files, ${(total / 1048576).toFixed(1)} MB`);
 }

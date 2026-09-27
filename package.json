@@ -5,12 +5,13 @@
   "type": "module",
   "description": "DELTARUNE boss fights in the browser, running the game's own logic.",
   "scripts": {
-    "extract": "node tools/extract/extract.mjs",
-    "build:game": "node tools/build/build.mjs",
+    "setup": "tools/setup.sh && tools/build/engine.sh",
+    "game": "tools/build/all.sh",
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc -p . && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "deploy": "npm run build && wrangler pages deploy dist --project-name deltarune-fights --commit-dirty=true",
+    "test:browser": "node tests/browser/menu-flow.mjs /tmp"
   },
   "devDependencies": {
     "@types/node": "^26.6.3",
@@ -19,6 +20,7 @@
     "pngjs": "^7.0.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.1",
-    "vitest": "^5.0.2"
+    "vitest": "^5.0.2",
+    "wrangler": "^4.142.0"
   }
 }

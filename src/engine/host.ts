@@ -1,6 +1,6 @@
 // Main-thread side of the runner: owns the canvas, audio output and the worker.
 
-export interface BundleFile { path: string; url: string; size: number; hash: string }
+export interface BundleFile { path: string; url: string; size: number; hash: string; gzip?: boolean; parts?: { url: string; size: number }[] }
 export interface BundleManifest { bundle: string; dataPath: string; files: BundleFile[] }
 
 export type HostEvent =

@@ -3,16 +3,17 @@
 Browser recreations of DELTARUNE boss fights (fights only, not the game), aiming for near 1:1 accuracy.
 Reference project: https://shadowcrystal.dev/DEVICE_KNIGHT/ (Roaring Knight only).
 
-## Approach
-- **Port, don't approximate.** Decompile each chapter's `data.win` (UndertaleModTool CLI) and translate boss GML → TypeScript via a semi-automatic transpiler + a minimal GameMaker runtime shim (instances, step/draw events, alarms, sprites, blend modes, surfaces, RNG).
-- One thin **per-chapter battle layer**: each chapter ships its own data.win and battle code drifts between chapters.
-- Deterministic sim, separated from rendering (enables replays and automated checks).
-- TypeScript + Vite, WebGL renderer, 640×480 native, locked 30fps, integer/pixel scaling.
+## Approach (revised 2026-09-27)
+- **Run the original bytecode.** Each chapter's `data.win` runs unmodified in [Butterscotch](https://github.com/ButterscotchRunner/Butterscotch) (open-source GameMaker runner, AGPL-3.0) compiled to WebAssembly. Its compatibility list rates Ch1–2 "Perfect" and Ch3–5 "Playable". This is more faithful than transpiling GML. The GML parser in `tools/gml/` is kept for data extraction.
+- **Patch, don't port.** `patches/chN/` holds small GML patches compiled into `data.win` by UndertaleModTool's compiler: boot straight into a fight, apply the loadout, report events (`show_debug_message("@@DRWEB ...")`), and implement the modes by steering the game's own variables (for example `scr_ambush()` to skip player turns, and the boss's own turn counter to force attacks).
+- Engine fixes live in `patches/butterscotch/*.patch`, applied onto a pinned Butterscotch commit by `tools/setup.sh`.
+- The page shell (menus, records, settings) is TypeScript and Vite, drawn in DELTARUNE style on a 640×480 canvas with the game's own fonts and sprites (extracted at build time).
 - Game install: `~/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/DELTARUNE/chapter{1..5}_windows/`
-- **Chapter 3 in the install is modded (Kaizo Knight).** Vanilla Ch3 `data.win` is at `~/Documents/DELTARUNE-kaizo-backup-20260909-DyuZxR/data.win` — always extract Ch3 from there.
+- **Chapter 3 in the install is modded (Kaizo Knight).** The vanilla Ch3 `data.win` is at `~/Documents/DELTARUNE-kaizo-backup-20260909-DyuZxR/data.win`. Always extract Ch3 from there.
 
 ## Assets & hosting
-- **No game assets in git, ever.** `npm run extract` pulls sprites/audio/fonts/code from the local install into a gitignored folder.
+- **No game assets in git, ever.** `npm run game` builds everything from the local install into gitignored folders (`.gamedata/`, `public/game`, `public/ui`, `public/data`).
+- Files over 4 MB ship gzipped and split into parts under 20 MiB (Cloudflare Pages has a 25 MiB per-file limit). The worker streams and stitches them into the browser's OPFS cache, keyed by content hash.
 - Public site on **Cloudflare Pages via direct upload** (`npm run deploy`), `*.pages.dev` for now, custom domain later.
 - Source on GitHub (account `michaelcube9214-wq`).
 

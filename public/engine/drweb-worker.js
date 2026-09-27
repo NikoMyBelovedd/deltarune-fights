@@ -51,23 +51,51 @@ async function syncFiles(bundle, files) {
   const cacheRaw = await readText(root, '.drweb-cache.json');
   const cache = cacheRaw ? JSON.parse(cacheRaw) : {};
   const todo = files.filter((f) => cache[f.path] !== f.hash);
-  const total = todo.reduce((a, f) => a + f.size, 0);
+  const wire = (f) => (f.parts ? f.parts.reduce((a, p) => a + p.size, 0) : f.size);
+  const total = todo.reduce((a, f) => a + wire(f), 0);
   let loaded = 0;
   post({ type: 'progress', loaded, total });
+  const counter = () => new TransformStream({
+    transform(chunk, ctl) {
+      loaded += chunk.byteLength;
+      post({ type: 'progress', loaded, total });
+      ctl.enqueue(chunk);
+    },
+  });
+  const fetchBody = async (url) => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`download failed: ${url} (${res.status})`);
+    return res.body;
+  };
   for (const f of todo) {
     const parts = f.path.split('/');
     const name = parts.pop();
     const dir = parts.length ? await opfsDir(`games/${bundle}/${parts.join('/')}`) : root;
-    const res = await fetch(f.url);
-    if (!res.ok) throw new Error(`download failed: ${f.url} (${res.status})`);
-    const counter = new TransformStream({
-      transform(chunk, ctl) {
-        loaded += chunk.byteLength;
-        post({ type: 'progress', loaded, total });
-        ctl.enqueue(chunk);
-      },
-    });
-    await writeFile(dir, name, res.body.pipeThrough(counter));
+    let body;
+    if (f.parts) {
+      // Stitch the parts back together in order, then undo the gzip.
+      const urls = f.parts.map((p) => p.url);
+      let i = 0;
+      let reader = null;
+      body = new ReadableStream({
+        async pull(ctl) {
+          for (;;) {
+            if (!reader) {
+              if (i >= urls.length) { ctl.close(); return; }
+              reader = (await fetchBody(urls[i++])).getReader();
+            }
+            const { done, value } = await reader.read();
+            if (done) { reader = null; continue; }
+            ctl.enqueue(value);
+            return;
+          }
+        },
+      }).pipeThrough(counter());
+      if (f.gzip) body = body.pipeThrough(new DecompressionStream('gzip'));
+    } else {
+      body = (await fetchBody(f.url)).pipeThrough(counter());
+    }
+    await writeFile(dir, name, body);
     cache[f.path] = f.hash;
     await writeFile(root, '.drweb-cache.json', JSON.stringify(cache));
   }

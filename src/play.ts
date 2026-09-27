@@ -55,6 +55,7 @@ export async function fightManifest(fight: FightDef): Promise<BundleManifest> {
   const files = m.files
     .filter((f) => !f.path.startsWith('mus/') || music.has(f.path))
     .map((f) => ({ ...f, url: `/game/ch${fight.chapter}/${f.path}` }));
+  // (parts, when present, replace url: big files ship gzipped and split under the size limit)
   return { bundle: m.bundle, dataPath: m.dataPath, files };
 }
 
