@@ -9,3 +9,7 @@ node_modules/
 *.log
 .DS_Store
 tools/underanalyzer/
+tools/butterscotch/
+tools/emsdk/
+tools/bs-web-ref/
+*.log
