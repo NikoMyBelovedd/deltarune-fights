@@ -33,3 +33,49 @@ function drweb_boot_fight()
             break;
     }
 }
+
+// ---- Jevil ----
+// Scripted turn (jturn) that plays each attack id, so its own speech line and turn length come with it.
+function drweb_jevil_jturn(_attack)
+{
+    var _map = [0, 1, 2, 3, 5, 6, 7, 8, 10, 11, 12, 13, 15, 16, 17, 18];
+    return _map[clamp(_attack, 0, 15)];
+}
+
+// Runs at the top of obj_joker's Step (as obj_joker).
+function drweb_jevil_step()
+{
+    if (!variable_instance_exists(id, "drweb_init"))
+    {
+        drweb_init = 1;
+        drweb_turns = 0;
+        var _p = global.drweb_phase;
+        if (_p > 0)
+        {
+            var _jt = [0, 0, 5, 10, 15, 18];
+            var _hp = [1, 1, 0.8, 0.6, 0.4, 0.15];
+            var _dance = [0, 0, 1, 1, 3, 2];
+            jturn = _jt[_p];
+            global.monsterhp[myself] = ceil(global.monstermaxhp[myself] * _hp[_p]);
+            var _d = _dance[_p];
+            with (body)
+                dancelv = _d;
+        }
+    }
+    if (global.monster[myself] == 1 && global.mnfight == 1 && talked == 0)
+    {
+        drweb_turns += 1;
+        var _a = -1;
+        if (global.drweb_mode == "single")
+            _a = global.drweb_attack;
+        else if (global.drweb_mode == "endless")
+        {
+            _a = drweb_bag_next(16);
+            if (drweb_turns > 16)
+                global.monsterat[myself] = min(global.monsterat[myself] + 0.5, 20);
+        }
+        if (_a >= 0)
+            jturn = drweb_jevil_jturn(_a);
+        drweb_emit("attack", _a);
+    }
+}

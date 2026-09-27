@@ -39,6 +39,16 @@
       "op": "append",
       "code": "gml_Object_obj_battlecontroller_Create_0",
       "text": "drweb_emit(\"battle\", global.encounterno);"
+    },
+    {
+      "op": "prepend",
+      "code": "gml_Object_obj_battlecontroller_Step_0",
+      "text": "drweb_battle_step();"
+    },
+    {
+      "op": "prepend",
+      "code": "gml_Object_obj_joker_Step_0",
+      "text": "drweb_jevil_step();"
     }
   ]
 }

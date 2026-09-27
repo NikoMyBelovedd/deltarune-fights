@@ -54,6 +54,7 @@ export class App {
   run: {
     setup: Setup; started: number; pausedAt: number; pausedTotal: number; battleAt: number;
     hits: number; attempts: number; restarts: number; endless: number; done: boolean;
+    clean: number; hitsAtAttack: number; attacksSeen: number;
   } | null = null;
   loading: { loaded: number; total: number; error?: string } | null = null;
 
@@ -142,7 +143,8 @@ export class App {
     const t = this.elapsed();
     const parts = [MODE_NAMES[r.setup.mode], `TIME ${fmtTime(t)}`, `HITS ${r.hits}`];
     if (r.setup.mode === 'hitless' || r.setup.mode === 'normal') parts.push(`TRY ${r.attempts + 1}`);
-    if (r.setup.mode === 'endless') parts.push(`ATTACKS ${r.endless}`);
+    if (r.setup.mode === 'endless') parts.push(`SURVIVED ${r.endless}`, `BEST ${store.record(this.recordKey(r.setup)).endlessBest}`);
+    if (r.setup.mode === 'single') parts.push(`CLEAN ${r.clean} / ${Math.max(0, r.attacksSeen - 1)}`);
     this.hud.textContent = parts.join('\n');
   }
 
@@ -214,7 +216,7 @@ export class App {
     };
     store.settings.seenIntro[introKey] = true;
     store.saveSettings();
-    this.run = { setup, started: performance.now(), pausedAt: 0, pausedTotal: 0, battleAt: 0, hits: 0, attempts: 0, restarts: 0, endless: 0, done: false };
+    this.run = { setup, started: performance.now(), pausedAt: 0, pausedTotal: 0, battleAt: 0, hits: 0, attempts: 0, restarts: 0, endless: 0, done: false, clean: 0, hitsAtAttack: 0, attacksSeen: 0 };
     this.loading = { loaded: 0, total: 0 };
     this.playing = true;
     this.push(new LoadingScreen(this));
@@ -256,17 +258,32 @@ export class App {
         } else if (e.name === 'hit') {
           r.hits++;
         } else if (e.name === 'restart') {
+          if (r.setup.mode === 'endless') this.saveEndless();
           r.attempts++;
           r.restarts++;
-          if (r.setup.mode === 'hitless') r.hits = 0;
+          if (r.setup.mode === 'hitless' || r.setup.mode === 'endless') r.hits = 0;
+          r.endless = 0;
+          r.attacksSeen = 0;
           r.battleAt = 0;
         } else if (e.name === 'attack') {
-          r.endless++;
+          // An attack counts as clean when no hit landed since the previous one started.
+          if (r.attacksSeen > 0 && r.hits === r.hitsAtAttack) r.clean++;
+          r.attacksSeen++;
+          r.hitsAtAttack = r.hits;
+          if (r.attacksSeen > 1) r.endless = r.attacksSeen - 1;
         } else if (e.name === 'win') {
           this.finish(e.data);
         }
         break;
     }
+  }
+
+  /** Endless: attacks fully survived before the party fell. */
+  private saveEndless(): void {
+    const r = this.run;
+    if (!r) return;
+    const n = r.endless;
+    store.updateRecord(this.recordKey(r.setup), (x) => { if (n > x.endlessBest) x.endlessBest = n; });
   }
 
   private finish(how: string): void {
@@ -302,6 +319,7 @@ export class App {
   }
 
   quitGame(): void {
+    if (this.run?.setup.mode === 'endless') this.saveEndless();
     this.host.stop();
     this.playing = false;
     this.run = null;
@@ -487,7 +505,8 @@ class SetupScreen implements Screen {
     const rec = store.record(this.app.recordKey(s));
     g.text('fnt_main', `${MODE_NAMES[s.mode]} RECORD`, 520, 250, C.gray, 1, 1);
     g.text('fnt_main', `CLEARS ${rec.clears}  TRIES ${rec.attempts}`, 520, 268, C.white, 1, 1);
-    g.text('fnt_main', `BEST ${rec.bestTime !== null ? fmtTime(rec.bestTime) : '--'}  FEWEST HITS ${rec.bestHits ?? '--'}`, 520, 286, C.white, 1, 1);
+    if (s.mode === 'endless') g.text('fnt_main', `MOST ATTACKS SURVIVED ${rec.endlessBest}`, 520, 286, C.white, 1, 1);
+    else if (s.mode !== 'single') g.text('fnt_main', `BEST ${rec.bestTime !== null ? fmtTime(rec.bestTime) : '--'}  FEWEST HITS ${rec.bestHits ?? '--'}`, 520, 286, C.white, 1, 1);
     const gear = this.app.gearCache.get(s.fight.chapter);
     s.fight.party.forEach((c, i) => {
       const y = 320 + i * 44;

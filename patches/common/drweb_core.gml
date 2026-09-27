@@ -87,10 +87,17 @@ function drweb_on_hit(_amount, _target)
 function drweb_on_gameover()
 {
     drweb_emit("gameover", global.drweb_attempt);
-    if (global.drweb_mode == "practice" || global.drweb_mode == "single" || global.drweb_mode == "endless")
+    if (global.drweb_mode == "practice" || global.drweb_mode == "single")
     {
-        for (var _c = 0; _c <= 4; _c++)
-            global.hp[_c] = global.maxhp[_c];
+        // No game over: bring the whole party back, the way the game revives a downed member.
+        for (var _i = 0; _i < 3; _i++)
+        {
+            if (global.char[_i] != 0)
+            {
+                global.hp[global.char[_i]] = global.maxhp[global.char[_i]];
+                scr_revive(_i);
+            }
+        }
         return true;
     }
     return false;
@@ -110,4 +117,35 @@ function drweb_restart(_why)
     audio_stop_all();
     global.drweb_restarting = 1;
     drweb_boot_fight();
+}
+
+// Runs at the top of obj_battlecontroller's Step. In Single Attack / Endless the party never gets a turn:
+// whenever the battle returns to the player's menu we start another enemy turn, the same way ambushes do.
+function drweb_battle_step()
+{
+    if ((global.drweb_mode == "single" || global.drweb_mode == "endless") && global.myfight == 0 && global.mnfight == 0)
+    {
+        scr_ambush();
+    }
+}
+
+// Shuffle-bag of attack indices 0..n-1 for Endless.
+function drweb_bag_next(_n)
+{
+    if (!variable_global_exists("drweb_bag") || array_length(global.drweb_bag) == 0)
+    {
+        global.drweb_bag = [];
+        for (var _i = 0; _i < _n; _i++)
+            global.drweb_bag[_i] = _i;
+        for (var _i = _n - 1; _i > 0; _i--)
+        {
+            var _j = irandom(_i);
+            var _t = global.drweb_bag[_i];
+            global.drweb_bag[_i] = global.drweb_bag[_j];
+            global.drweb_bag[_j] = _t;
+        }
+    }
+    var _v = global.drweb_bag[array_length(global.drweb_bag) - 1];
+    array_resize(global.drweb_bag, array_length(global.drweb_bag) - 1);
+    return _v;
 }
