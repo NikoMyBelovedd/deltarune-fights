@@ -67,8 +67,7 @@ function drweb_boot_fight()
             global.flag[550] = 2;
             global.flag[457] = 0;
             global.flag[548] = 0;
-            if (_quick)
-                global.tempflag[31] = 1;
+            global.tempflag[31] = _quick;
             drweb_apply_loadout();
             drweb_emit("start", "queen");
             room_goto(room_dw_mansion_east_4f_d);
@@ -91,16 +90,14 @@ function drweb_boot_fight()
                 // and puts Kris at the 160 HP cap with AT 14.
                 repeat (20)
                     scr_levelup();
-                if (_quick)
-                    global.tempflag[34] = 1;
+                global.tempflag[34] = _quick;
                 drweb_apply_loadout();
                 drweb_emit("start", "spamton_neo");
                 room_goto(room_dw_mansion_fountain);
             }
             else
             {
-                if (_quick)
-                    global.tempflag[32] = 1;
+                global.tempflag[32] = _quick;
                 drweb_apply_loadout();
                 drweb_emit("start", "spamton_neo");
                 room_goto(room_dw_mansion_b_east);
