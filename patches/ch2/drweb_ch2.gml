@@ -89,11 +89,8 @@ function drweb_boot_fight()
                 // Every battle won with a frozen enemy runs scr_levelup (flag[63]). The route freezes up to 19
                 // tracked encounters (scr_sideb_checkencounters) plus chase enemies; 20 level-ups is the usual total
                 // and puts Kris at the 160 HP cap with AT 14.
-                if (global.drweb_stat_hp[1] <= 0)
-                {
-                    repeat (20)
-                        scr_levelup();
-                }
+                repeat (20)
+                    scr_levelup();
                 if (_quick)
                     global.tempflag[34] = 1;
                 drweb_apply_loadout();

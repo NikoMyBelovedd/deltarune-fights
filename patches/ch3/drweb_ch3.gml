@@ -198,7 +198,7 @@ function drweb_tenna_step()
     // A failed minigame counts as a hit (the damage itself is dealt when the minigame ends).
     // (The umbrella minigame counts its fails inside scr_damage, which already reports the hit.)
     if (minigamefailcount > drweb_prevfail && global.drweb_mode == "hitless" && !i_ex(obj_elnina_umbrella))
-        drweb_ch3_on_hit(0, -1);
+        drweb_ch3_on_hit(0, 3);
     drweb_prevfail = minigamefailcount;
 }
 

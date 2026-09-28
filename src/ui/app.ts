@@ -549,7 +549,7 @@ class SetupScreen implements Screen {
     rows.push({ id: 'mode', label: 'MODE', value: `< ${MODE_NAMES[s.mode]} >` });
     if (f.variants) rows.push({ id: 'variant', label: 'VARIANT', value: `< ${f.variants.find((v) => v.id === s.variant)?.name ?? '?'} >` });
     if (s.mode === 'single') rows.push({ id: 'attack', label: 'ATTACK', value: `< ${f.attacks.find((a) => a.id === s.attack)?.name ?? '?'} >` });
-    else if (f.phases.length) rows.push({ id: 'phase', label: 'START', value: `< ${s.phase === 0 ? 'WHOLE FIGHT' : f.phases.find((p) => p.id === s.phase)?.name} >` });
+    else if (f.phases.length) rows.push({ id: 'phase', label: 'BEGIN AT', value: `< ${s.phase === 0 ? 'WHOLE FIGHT' : f.phases.find((p) => p.id === s.phase)?.name} >` });
     rows.push({ id: 'intro', label: 'INTRO', value: s.mode === 'normal' || s.mode === 'practice' ? (s.intro ? 'ON' : 'OFF') : 'SKIPPED', dim: !(s.mode === 'normal' || s.mode === 'practice') });
     rows.push({ id: 'equip', label: 'EQUIPMENT' });
     rows.push({ id: 'items', label: 'ITEMS' });
@@ -564,9 +564,10 @@ class SetupScreen implements Screen {
   draw(g: Gfx): void {
     const s = this.setup;
     g.text('fnt_mainbig', s.fight.name, 320, 16, C.white, 1, 1);
-    g.darkbox(16, 60, 400, 470);
+    g.darkbox(16, 56, 400, 436);
     const rows = this.rows();
-    drawOptions(g, rows, this.sel, 40, 84, 42, 200);
+    const rowH = Math.min(40, Math.floor(340 / rows.length));
+    drawOptions(g, rows, this.sel, 40, 76, rowH, 190);
     // right panel: boss, record, loadout summary
     drawBoss(g, s.fight, 520, 150, 180, 160, g.time / 6);
     const rec = store.record(this.app.recordKey(s));
@@ -584,7 +585,7 @@ class SetupScreen implements Screen {
       g.text('fnt_main', w?.name ?? '---', 462, y + 2, C.white);
       g.text('fnt_main', an || '---', 462, y + 18, C.gray);
     });
-    if (this.msgT > 0) { this.msgT--; g.text('fnt_mainbig', this.msg, 208, 432, C.yellow, 1, 1); }
+    if (this.msgT > 0) { this.msgT--; g.text('fnt_mainbig', this.msg, 320, 444, C.yellow, 1, 1); }
     const row = rows[this.sel];
     const help: Record<string, string> = {
       mode: MODE_HELP[s.mode],
@@ -599,7 +600,7 @@ class SetupScreen implements Screen {
       attack: 'The attack to practice, forever.',
       phase: 'Where the fight starts.',
     };
-    if (this.msgT <= 0 && help[row.id]) g.text('fnt_main', help[row.id], 208, 440, C.gray, 1, 1);
+    if (this.msgT <= 0 && help[row.id]) g.text('fnt_main', help[row.id], 320, 452, C.gray, 1, 1);
   }
 
   key(k: MenuKey): void {

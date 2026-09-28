@@ -83,7 +83,8 @@ function drweb_titan_battlemsg(_a)
         case 4: case 8: return stringsetloc("* The darkness slithers.", "obj_titan_enemy_slash_Other_10_gml_8_0");
         case 5: case 9: return stringsetloc("* Darkness flows.&* A swarm is coming.", "obj_titan_enemy_slash_Other_10_gml_9_0");
         case 6: case 10: return stringsetloc("* The Titan's hands began to move once more.", "obj_titan_enemy_slash_Other_10_gml_10_0");
-        case 3: case 7: case 12: return stringsetloc("* Titan's DEFENSEs are dropped! ATTACKs will be super effective!", "obj_titan_enemy_slash_Other_10_gml_12_0");
+        case 3: case 7: return stringsetloc("* Titan's DEFENSE dropped massively! ATTACKs are super effective!", "obj_titan_enemy_slash_Other_10_gml_4_0");
+        case 12: return stringsetloc("* Titan's DEFENSEs are dropped! ATTACKs will be super effective!", "obj_titan_enemy_slash_Other_10_gml_12_0");
     }
     return "";
 }
