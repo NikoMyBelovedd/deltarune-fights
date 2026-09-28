@@ -26,7 +26,7 @@ Read `PLAN.md` for the agreed scope and `docs/porting-guide.md` for how a fight 
     2. Run each `tests/configs/chN-*.ini` with `tools/patch/run-desktop.sh N <ini> --headless --playback-inputs $PWD/tests/inputs/mash-z-long.json --exit-at-frame 3000`. Check for `@@DRWEB battle`, `attack` and `hit` events, and look at the screenshots.
     3. Write the FightDef entries in `src/fights.ts` (music list = every `snd_init` in the fight's code; attacks and phases come from the GML maps) and set `available: true`.
     4. Run `node tools/build/bundle.ts N`, then test in the browser.
-  - None of this ch2–5 work is committed; it is in the working tree only.
+  - This work is committed as a WIP commit and is untested.
 - **Known risks:** Ch4 relies heavily on shaders, and Butterscotch's compatibility list reports Ch5 Pink as broken. The agents were asked to diagnose these; fixes go in as new `patches/butterscotch/*.patch` files.
 
 ## Gotchas
