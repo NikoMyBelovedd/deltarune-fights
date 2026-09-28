@@ -37,7 +37,7 @@
     input.attach((vk, down) => host.key(vk, down));
     await startFight(host, document.getElementById('mount'), {
       fight: FIGHTS.find((f) => f.id === (params.get('boss') ?? 'jevil')),
-      variant: '', mode: params.get('mode') ?? 'normal', intro: params.get('intro') !== '0', attack: -1, phase: 0,
+      variant: '', mode: params.get('mode') ?? 'normal', intro: params.get('intro') !== '0', attack: Number(params.get('attack') ?? -1), phase: Number(params.get('phase') ?? 0),
       seed: Number(params.get('seed') ?? 0), weapons: {}, armors: {}, items: [], dials: { speed: Number(params.get('speed') ?? 100), damage: 100, iframes: 100 },
     });
   }

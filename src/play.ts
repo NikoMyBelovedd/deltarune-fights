@@ -26,8 +26,11 @@ export function configToIni(c: FightConfig): string {
     `attack=${c.attack}`, `phase=${c.phase}`, `seed=${c.seed}`, '[dials]', `speed=${c.dials.speed}`, `damage=${c.dials.damage}`, `iframes=${c.dials.iframes}`, '[party]'];
   for (const [ch, w] of Object.entries(c.weapons)) lines.push(`weapon${ch}=${w}`);
   for (const [ch, [a, b]] of Object.entries(c.armors)) lines.push(`armor${ch}a=${a}`, `armor${ch}b=${b}`);
-  lines.push('[items]');
-  for (let i = 0; i < 12; i++) lines.push(`item${i}=${c.items[i] ?? 0}`);
+  // An empty list means "keep the game's own inventory".
+  if (c.items.length) {
+    lines.push('[items]');
+    for (let i = 0; i < 12; i++) lines.push(`item${i}=${c.items[i] ?? 0}`);
+  }
   if (c.stats) {
     lines.push('[stats]');
     for (const [ch, s] of Object.entries(c.stats)) {

@@ -580,9 +580,9 @@ class SetupScreen implements Screen {
       const y = 320 + i * 44;
       g.sprite(CHAR_HEADS[c], 0, 420, y);
       const w = gear?.weapons.find((x) => x.id === s.loadout.weapons[c]);
-      const [a1, a2] = s.loadout.armors[c] ?? [0, 0];
-      const an = [a1, a2].map((a) => gear?.armors.find((x) => x.id === a)?.name).filter(Boolean).join(', ');
-      g.text('fnt_main', w?.name ?? '---', 462, y + 2, C.white);
+      const armors = s.loadout.armors[c];
+      const an = armors ? armors.map((a) => gear?.armors.find((x) => x.id === a)?.name).filter(Boolean).join(', ') : 'game default';
+      g.text('fnt_main', s.loadout.weapons[c] === undefined ? 'game default' : w?.name ?? '---', 462, y + 2, C.white);
       g.text('fnt_main', an || '---', 462, y + 18, C.gray);
     });
     if (this.msgT > 0) { this.msgT--; g.text('fnt_mainbig', this.msg, 320, 444, C.yellow, 1, 1); }
@@ -694,8 +694,9 @@ class EquipScreen implements Screen {
         const id = sl.kind === 'weapon' ? this.s.loadout.weapons[c] : (this.s.loadout.armors[c] ?? [0, 0])[sl.idx];
         const e = sl.kind === 'weapon' ? gear?.weapons.find((w) => w.id === id) : gear?.armors.find((a) => a.id === id);
         const on = i === this.col && j === this.row;
+        const unset = sl.kind === 'weapon' ? this.s.loadout.weapons[c] === undefined : this.s.loadout.armors[c] === undefined;
         g.text('fnt_main', sl.label, x + 40, y, C.gray);
-        g.text('fnt_mainbig', e?.name || '(NONE)', x + 40, y + 16, on ? C.yellow : C.white);
+        g.text('fnt_mainbig', unset ? 'GAME DEFAULT' : e?.name || '(NONE)', x + 40, y + 16, on ? C.yellow : unset ? C.gray : C.white);
         if (on) g.heart(x + 16, y + 24);
       });
       const st = this.statsFor(c);
@@ -846,7 +847,8 @@ class ItemsScreen implements Screen {
       const y = 84 + Math.floor(i / 2) * 46;
       const id = this.s.loadout.items[i] ?? 0;
       const it = gear?.items.find((x2) => x2.id === id);
-      g.text('fnt_mainbig', it?.name || '---', x, y, i === this.sel ? C.yellow : id ? C.white : C.gray);
+      const label = this.s.loadout.items.length === 0 ? (i === 0 ? 'GAME DEFAULT' : '') : it?.name || '---';
+      g.text('fnt_mainbig', label, x, y, i === this.sel ? C.yellow : id ? C.white : C.gray);
       if (i === this.sel) g.heart(x - 30, y + 8);
     }
     const it = gear?.items.find((x) => x.id === (this.s.loadout.items[this.sel] ?? 0));
@@ -869,7 +871,7 @@ class ItemsScreen implements Screen {
       this.app.push(new PickScreen(this.app, 'ITEM', list, this.s.loadout.items[this.sel] ?? 0, true, (id) => { this.s.loadout.items[this.sel] = id; this.compact(); }));
     }
   }
-  /** The game's inventory has no gaps. */
+  /** The game's inventory has no gaps. Editing an untouched ("game default") inventory starts from empty. */
   compact(): void {
     const it = this.s.loadout.items.filter((x) => x > 0);
     while (it.length < 12) it.push(0);

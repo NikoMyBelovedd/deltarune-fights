@@ -1,0 +1,99 @@
+diff --git a/src/gl/gl_renderer.c b/src/gl/gl_renderer.c
+index 60643e3..0b7a564 100644
+--- a/src/gl/gl_renderer.c
++++ b/src/gl/gl_renderer.c
+@@ -493,6 +493,69 @@ static void glDrawVertex(Renderer* renderer, float x, float y, float z, uint32_t
+ 
+ // ===[ Vtable Implementations ]===
+ 
++
++// deltaruneWEB: GameMaker emits GLSL ES 1.00, whose Appendix A forbids loops with non-constant bounds
++// (e.g. shd_pal_swapper). WebGL enforces that strictly, so shaders that fail are retried as GLSL ES 3.00.
++static bool isIdentChar(char c) {
++    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
++}
++
++// Replaces whole-word occurrences of `from` with `to`. Returns a new heap string.
++static char* replaceWord(const char* src, const char* from, const char* to) {
++    size_t fromLen = strlen(from), toLen = strlen(to), srcLen = strlen(src);
++    size_t cap = srcLen + 1 + (toLen > fromLen ? (toLen - fromLen) * (srcLen / (fromLen ? fromLen : 1) + 1) : 0);
++    char* out = (char*) safeMalloc(cap);
++    size_t o = 0;
++    for (size_t i = 0; i < srcLen;) {
++        if (strncmp(src + i, from, fromLen) == 0 && (i == 0 || !isIdentChar(src[i - 1])) && !isIdentChar(src[i + fromLen])) {
++            memcpy(out + o, to, toLen);
++            o += toLen;
++            i += fromLen;
++        } else {
++            out[o++] = src[i++];
++        }
++    }
++    out[o] = '\0';
++    return out;
++}
++
++static char* chainReplace(char* src, const char* from, const char* to) {
++    char* next = replaceWord(src, from, to);
++    free(src);
++    return next;
++}
++
++// Drops any #version line and prefixes the GLSL ES 3.00 header.
++static char* withEs3Header(char* src, const char* extra) {
++    char* v = strstr(src, "#version");
++    if (v) { while (*v && *v != '\n') *v++ = ' '; }
++    size_t n = strlen(src) + strlen(extra) + 32;
++    char* out = (char*) safeMalloc(n);
++    snprintf(out, n, "#version 300 es\n%s%s", extra, src);
++    free(src);
++    return out;
++}
++
++static char* toEs3Vertex(const char* src) {
++    char* s = safeStrdup(src);
++    s = chainReplace(s, "attribute", "in");
++    s = chainReplace(s, "varying", "out");
++    s = chainReplace(s, "texture2D", "texture");
++    s = chainReplace(s, "texture2DLod", "textureLod");
++    return withEs3Header(s, "");
++}
++
++static char* toEs3Fragment(const char* src) {
++    char* s = safeStrdup(src);
++    s = chainReplace(s, "varying", "in");
++    s = chainReplace(s, "texture2D", "texture");
++    s = chainReplace(s, "texture2DLod", "textureLod");
++    s = chainReplace(s, "textureCube", "texture");
++    s = chainReplace(s, "gl_FragColor", "drweb_FragColor");
++    s = chainReplace(s, "gl_FragData[0]", "drweb_FragColor");
++    return withEs3Header(s, "precision mediump float;\nout vec4 drweb_FragColor;\n");
++}
++
+ static bool compileProgram(GMLShader* gmlShader, const char* name, const char* vertexShaderSource, const char* fragmentShaderSource, uint32_t vertexAttributeCount, const char** vertexAttributes) {
+     logInfo("GL: Compiling %s vertex shader\n", name);
+     bool vertexShaderOK = false;
+@@ -692,7 +755,7 @@ static void glInit(Renderer* renderer, DataWin* dataWin) {
+             }
+         }
+ 
+-        compileProgram(
++        bool compiled = compileProgram(
+             gmlShader,
+             shdr->name,
+             vertexShaderSource,
+@@ -700,6 +763,15 @@ static void glInit(Renderer* renderer, DataWin* dataWin) {
+             shdr->vertexAttributeCount,
+             shdr->vertexAttributes
+         );
++        if (!compiled && modernGl->isGLES && modernGl->isGL3 && vertexShaderSource && fragmentShaderSource) {
++            char* es3Vertex = toEs3Vertex(vertexShaderSource);
++            char* es3Fragment = toEs3Fragment(fragmentShaderSource);
++            if (compileProgram(gmlShader, shdr->name, es3Vertex, es3Fragment, shdr->vertexAttributeCount, shdr->vertexAttributes)) {
++                logInfo("GL: %s compiled as GLSL ES 3.00\n", shdr->name);
++            }
++            free(es3Vertex);
++            free(es3Fragment);
++        }
+ 
+         if (patchedVertexSource) free(patchedVertexSource);
+         if (patchedFragmentSource) free(patchedFragmentSource);

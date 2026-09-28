@@ -62,6 +62,14 @@ const CH2_MANSION: GearRules = {
   defaults: { weapons: { 1: 1, 2: 2, 3: 3 }, armors: { 1: [0, 0], 2: [0, 0], 3: [0, 0] }, items: [] },
 };
 
+// Chapters 3-5: equipment comes from the game's own chapter defaults unless changed ("GAME DEFAULT").
+// Legal lists are approximate (every non-debug item of the chapter) until a per-fight obtainability pass.
+function chapterRules(weapons: number[], armors: number[], items: number[]): GearRules {
+  return { weapons, armors, items, unique: { weapons: [], armors: [] }, defaults: { weapons: {}, armors: {}, items: [] } };
+}
+const range = (a: number, b: number) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+const CH3_RULES = chapterRules([1, 2, 3, 5, 6, 7, 8, 9, 10, ...range(11, 26)], range(1, 27), range(1, 39));
+
 const PENDING: GearRules = { weapons: [], armors: [], items: [], unique: { weapons: [], armors: [] }, defaults: { weapons: {}, armors: {}, items: [] } };
 
 export const FIGHTS: FightDef[] = [
@@ -96,7 +104,17 @@ export const FIGHTS: FightDef[] = [
     ],
     phases: [], modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: CH1_CASTLE, available: true,
   },
-  { id: 'knight', name: 'ROARING KNIGHT', chapter: 3, sprite: 'boss_knight', music: [], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: PENDING, available: false },
+  {
+    id: 'knight', name: 'ROARING KNIGHT', chapter: 3, sprite: 'boss_knight',
+    music: ['knight.ogg', 'gameover_short.ogg', 'AUDIO_DEFEAT.ogg'],
+    party: [1, 2, 3],
+    attacks: [
+      ...[1, 2, 3].flatMap((p) => [1, 2, 3, 4, 5].map((t) => ({ id: (p - 1) * 5 + t - 1, name: `PHASE ${p} - ${t}` }))),
+      { id: 15, name: 'THE ROARING' },
+    ],
+    phases: [{ id: 2, name: 'PHASE 2' }, { id: 3, name: 'PHASE 3' }, { id: 4, name: 'PHASE 4 (80%)' }],
+    modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: CH3_RULES, available: true,
+  },
   {
     id: 'spamton_neo', name: 'SPAMTON NEO', chapter: 2, sprite: 'boss_spamton_neo',
     music: ['shinkansen.ogg', 'spamton_neo_meeting.ogg', 'spamton_neo_mix_ex_wip.ogg', 'spamton_neo_after.ogg', 'gameover_short.ogg', 'AUDIO_DEFEAT.ogg'],
@@ -124,7 +142,18 @@ export const FIGHTS: FightDef[] = [
     phases: [{ id: 2, name: '75% HP' }, { id: 3, name: '50% HP' }, { id: 4, name: '25% HP' }],
     modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: CH2_MANSION, available: true,
   },
-  { id: 'tenna', name: 'TENNA', chapter: 3, sprite: 'boss_tenna', music: [], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: PENDING, available: false },
+  {
+    id: 'tenna', name: 'TENNA', chapter: 3, sprite: 'boss_tenna',
+    music: ['tenna_battle.ogg', 'tenna_battle_guitar.ogg', 'flashback_excerpt.ogg', 'rtenna_zoom.ogg', 'tv_results_screen.ogg', 'gameover_short.ogg', 'AUDIO_DEFEAT.ogg'],
+    party: [1, 2, 3],
+    attacks: [
+      { id: 0, name: 'TENNA ATTACK 1' }, { id: 1, name: 'TENNA ATTACK 2' }, { id: 2, name: 'TENNA ATTACK 3' },
+      { id: 3, name: 'RHYTHM GAME' }, { id: 4, name: 'COOKING' }, { id: 5, name: 'COWBOY' }, { id: 6, name: 'COWBOY II' },
+      { id: 7, name: 'BATTLE' }, { id: 8, name: 'BATTLE II' }, { id: 9, name: 'SUSIEZILLA' }, { id: 10, name: 'SUSIEZILLA II' }, { id: 11, name: 'SUSIEZILLA III' },
+    ],
+    phases: [{ id: 2, name: 'HALF HP' }, { id: 3, name: 'FINAL EPISODE' }],
+    modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: CH3_RULES, available: true,
+  },
   { id: 'titan', name: 'TITAN', chapter: 4, sprite: 'boss_titan', music: [], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: PENDING, available: false },
   { id: 'gerson', name: 'GERSON', chapter: 4, sprite: 'boss_gerson', music: [], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: PENDING, available: false },
   { id: 'flowery', name: 'FLOWERY', chapter: 5, sprite: 'boss_flowery', music: [], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: PENDING, available: false },
