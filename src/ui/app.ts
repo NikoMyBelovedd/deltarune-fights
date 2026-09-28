@@ -883,15 +883,16 @@ class PickScreen implements Screen {
   sel = 0;
   top = 0;
   entries: (GearEntry | null)[];
+  private static VIS = 8;
   constructor(private app: App, private title: string, list: GearEntry[], cur: number, allowNone: boolean, private done: (id: number) => void) {
-    this.entries = allowNone ? [null, ...list] : list;
+    this.entries = allowNone ? [null, ...list.filter((e) => e.name)] : list.filter((e) => e.name);
     this.sel = Math.max(0, this.entries.findIndex((e) => (e?.id ?? 0) === cur));
   }
   draw(g: Gfx): void {
     g.rect(0, 0, 640, 480, C.black, 0.85);
     g.darkbox(60, 30, 580, 450);
     g.text('fnt_mainbig', `CHOOSE ${this.title}`, 320, 48, C.white, 1, 1);
-    const vis = 8;
+    const vis = PickScreen.VIS;
     if (this.sel < this.top) this.top = this.sel;
     if (this.sel >= this.top + vis) this.top = this.sel - vis + 1;
     for (let i = 0; i < vis && this.top + i < this.entries.length; i++) {
@@ -906,13 +907,22 @@ class PickScreen implements Screen {
       }
       if (on) g.heart(90, y + 8);
     }
+    // Scroll hints: there is almost always more than one page.
+    const bob = Math.round(Math.sin(g.time / 6) * 2);
+    if (this.top > 0) g.text('fnt_mainbig', '^', 320, 70 + bob, C.white, 1, 1);
+    if (this.top + vis < this.entries.length) g.text('fnt_mainbig', 'v', 320, 376 - bob, C.white, 1, 1);
+    g.text('fnt_main', `${this.sel + 1} / ${this.entries.length}   LEFT/RIGHT: PAGE`, 552, 404, C.gray, 1, 2);
     const e = this.entries[this.sel];
-    if (e) g.wrap('fnt_main', e.desc, 480).slice(0, 2).forEach((l, i) => g.text('fnt_main', l, 320, 404 + i * 18, C.gray, 1, 1));
+    if (e) g.wrap('fnt_main', e.desc, 440).slice(0, 2).forEach((l, i) => g.text('fnt_main', l, 90, 404 + i * 18, C.gray));
   }
   key(k: MenuKey): void {
     const g = this.app.g;
     const n = this.entries.length;
     if (k === 'up' || k === 'down') { this.sel = (this.sel + (k === 'up' ? -1 : 1) + n) % n; g.sfx('snd_menumove'); }
+    if (k === 'left' || k === 'right') {
+      this.sel = Math.max(0, Math.min(n - 1, this.sel + (k === 'left' ? -1 : 1) * PickScreen.VIS));
+      g.sfx('snd_menumove');
+    }
     if (k === 'cancel') { g.sfx('snd_menumove'); this.app.pop(); }
     if (k === 'confirm') { g.sfx('snd_equip'); this.done(this.entries[this.sel]?.id ?? 0); this.app.pop(); }
   }

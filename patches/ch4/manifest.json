@@ -47,11 +47,6 @@
     },
     {
       "op": "prepend",
-      "code": "gml_Object_obj_dw_churchc_titanclimb2_post_Step_0",
-      "text": "drweb_titan_room_step();"
-    },
-    {
-      "op": "prepend",
       "code": "gml_Object_obj_titan_enemy_Step_0",
       "text": "drweb_titan_step();"
     },
@@ -100,6 +95,11 @@
       "code": "gml_GlobalScript_snd_init",
       "find": "function snd_init(arg0)\n{",
       "replace": "function snd_init(arg0)\n{\n    drweb_emit(\"music\", arg0);"
+    },
+    {
+      "op": "prepend",
+      "code": "gml_Object_obj_dw_churchc_titanclimb2_post_Step_0",
+      "text": "drweb_titan_room_step();"
     }
   ]
 }

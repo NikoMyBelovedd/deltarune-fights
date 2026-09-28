@@ -104,6 +104,19 @@ for (const ch of process.argv.slice(2).map(Number)) {
   const items = [...cases(join(code, 'gml_GlobalScript_scr_iteminfo.gml'), lang)]
     .filter(([id]) => id > 0)
     .map(([id, v]) => ({ id, name: clean(v.itemnameb), desc: clean(v.itemdescb), usable: v.usable === 1, target: v.itemtarget ?? 0 }));
+  // Some names are built at runtime (e.g. scr_text lookups); borrow them from an earlier chapter's table.
+  for (let prev = ch - 1; prev >= 1; prev--) {
+    const f = join(ROOT, 'public/data', `gear-ch${prev}.json`);
+    if (!existsSync(f)) continue;
+    const old = JSON.parse(readFileSync(f, 'utf8')) as Record<'weapons' | 'armors' | 'items', { id: number; name: string; desc: string }[]>;
+    for (const [list, oldList] of [[weapons, old.weapons], [armors, old.armors], [items, old.items]] as const) {
+      for (const e of list) {
+        if (e.name) continue;
+        const o = oldList.find((x) => x.id === e.id && x.name);
+        if (o) { e.name = o.name; e.desc ||= o.desc; }
+      }
+    }
+  }
   mkdirSync(join(ROOT, 'public/data'), { recursive: true });
   writeFileSync(join(ROOT, 'public/data', `gear-ch${ch}.json`), JSON.stringify({ chapter: ch, weapons, armors, items }, null, 1));
   console.log(`ch${ch}: ${weapons.length} weapons, ${armors.length} armors, ${items.length} items`);

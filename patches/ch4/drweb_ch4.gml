@@ -58,14 +58,19 @@ function drweb_boot_fight()
 }
 
 // ---- Titan ----
-// Runs at the top of obj_dw_churchc_titanclimb2_post's Step: the cutscene waits for the player to walk right
-// (con 4: x >= 3486, con 16: x >= 3877). We walk for them.
+// Titan's intro hands control back (regain_control) and waits for the player to walk right. With the full intro
+// that walk is the player's, exactly like the real game. On the shortened retry path we skip the wait the way the
+// trigger itself does (con 5 + lose_control): the cutscene then runs everyone from where they stand to fixed spots.
+// (Teleporting Kris to the trigger instead left the party behind and Kris off-camera.)
 function drweb_titan_room_step()
 {
-    if (con == 4 && obj_mainchara.x < 3486)
-        obj_mainchara.x = 3486;
-    if (con == 16 && obj_mainchara.x < 3877)
-        obj_mainchara.x = 3877;
+    if (!shortened)
+        exit;
+    if ((con == 4 || con == 16) && global.interact == 0)
+    {
+        con = 5;
+        lose_control();
+    }
 }
 
 // Attack table for Single/Endless: [phase, myattackchoice]. The phase matters: it scales the Big Shot

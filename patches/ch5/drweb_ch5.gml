@@ -65,30 +65,42 @@ function drweb_boot_fight()
 }
 
 // ---- Flowery ----
-// Runs at the top of obj_ch5_DW29's Step: walks Kris into whichever trigger the cutscene is waiting for.
+// Runs at the top of obj_ch5_DW29's Step. With the full intro the player walks into the room's triggers, exactly
+// like the real game. On the shortened retry path we fire each trigger's own effect in place instead (the same
+// con / lose_control() the trigger does), so nobody is moved: teleporting Kris onto the triggers left Susie and
+// Ralsei behind and had them walk through the air to catch up.
 function drweb_flowery_room_step()
 {
-    if (global.interact != 0 || d_ex())
+    if (!_shortened_mode || global.interact != 0 || d_ex())
         exit;
-    // The room's own cutscene must first reach its c_waitcustom() (the player normally walks for a while).
     if (instance_exists(obj_cutscene_master) && obj_cutscene_master.cs_wait_custom != 1)
         exit;
-    var _want = "";
+    var _fire = "";
     if (con < 0 && enter_active)
-        _want = "flowery_a";
-    else if (con == 3 && customcon == 1)
-        _want = "flowery_b";
-    else if (con == 6 && customcon == 1)
-        _want = "flowery_c";
-    if (_want == "")
-        exit;
-    with (obj_trigger)
     {
-        if (extflag == _want)
+        con = 0;
+        global.interact = 1;
+        enter_active = false;
+        _fire = "flowery_a";
+    }
+    else if (con == 3 && customcon == 1)
+    {
+        con = 5;
+        lose_control();
+        _fire = "flowery_b";
+    }
+    else if (con == 6 && customcon == 1)
+    {
+        con = 7;
+        lose_control();
+        _fire = "flowery_c";
+    }
+    if (_fire != "")
+    {
+        with (obj_trigger)
         {
-            // Line up Kris's collision box with the trigger's so place_meeting() fires this frame.
-            obj_mainchara.x += (bbox_left + 8) - obj_mainchara.bbox_left;
-            obj_mainchara.y += (bbox_top + 1) - obj_mainchara.bbox_top;
+            if (extflag == _fire)
+                instance_destroy();
         }
     }
 }
