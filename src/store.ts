@@ -8,6 +8,7 @@ export interface Settings {
   showHud: boolean;
   bindings: Bindings;
   seenIntro: Record<string, boolean>;
+  lastFight?: string;
 }
 
 export interface Record_ {

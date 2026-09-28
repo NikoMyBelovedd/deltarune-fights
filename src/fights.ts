@@ -113,17 +113,6 @@ export const FIGHTS: FightDef[] = [
     phases: [], modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: CH1_CASTLE, available: true,
   },
   {
-    id: 'knight', name: 'ROARING KNIGHT', chapter: 3, sprite: 'boss_knight',
-    music: ['knight.ogg', 'gameover_short.ogg', 'AUDIO_DEFEAT.ogg'],
-    party: [1, 2, 3],
-    attacks: [
-      ...[1, 2, 3].flatMap((p) => [1, 2, 3, 4, 5].map((t) => ({ id: (p - 1) * 5 + t - 1, name: `PHASE ${p} - ${t}` }))),
-      { id: 15, name: 'THE ROARING' },
-    ],
-    phases: [{ id: 2, name: 'PHASE 2' }, { id: 3, name: 'PHASE 3' }, { id: 4, name: 'PHASE 4 (80%)' }],
-    modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: CH3_RULES, available: true,
-  },
-  {
     id: 'spamton_neo', name: 'SPAMTON NEO', chapter: 2, sprite: 'boss_spamton_neo',
     music: ['shinkansen.ogg', 'spamton_neo_meeting.ogg', 'spamton_neo_mix_ex_wip.ogg', 'spamton_neo_after.ogg', 'gameover_short.ogg', 'AUDIO_DEFEAT.ogg'],
     party: [1, 2, 3],
@@ -164,17 +153,15 @@ export const FIGHTS: FightDef[] = [
     modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: CH3_RULES, available: true,
   },
   {
-    id: 'titan', name: 'TITAN', chapter: 4, sprite: 'boss_titan',
-    music: ['wind_highplace.ogg', 'GALLERY.ogg', 'titan_battle.ogg', 'gameover_short.ogg', 'AUDIO_DEFEAT.ogg'],
+    id: 'knight', name: 'ROARING KNIGHT', chapter: 3, sprite: 'boss_knight',
+    music: ['knight.ogg', 'gameover_short.ogg', 'AUDIO_DEFEAT.ogg'],
     party: [1, 2, 3],
     attacks: [
-      { id: 0, name: 'SWARM' }, { id: 1, name: 'GAZE' }, { id: 2, name: 'HEART GRIP' }, { id: 3, name: 'UNLEASHED' },
-      { id: 4, name: 'SLITHER' }, { id: 5, name: 'SWARM II' }, { id: 6, name: 'HANDS' }, { id: 7, name: 'UNLEASHED II' },
-      { id: 8, name: 'SLITHER II' }, { id: 9, name: 'SWARM III' }, { id: 10, name: 'HANDS II' }, { id: 11, name: 'DESPERATION' },
-      { id: 12, name: 'UNLEASHED III' },
+      ...[1, 2, 3].flatMap((p) => [1, 2, 3, 4, 5].map((t) => ({ id: (p - 1) * 5 + t - 1, name: `PHASE ${p} - ${t}` }))),
+      { id: 15, name: 'THE ROARING' },
     ],
-    phases: [{ id: 3, name: 'SHIELD RETURNS' }, { id: 5, name: 'SHIELD RETURNS II' }, { id: 6, name: 'THIRD UNLEASH' }, { id: 7, name: 'REGENERATION' }, { id: 8, name: 'OLD MAN' }],
-    modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: ALL_RULES, available: true,
+    phases: [{ id: 2, name: 'PHASE 2' }, { id: 3, name: 'PHASE 3' }, { id: 4, name: 'PHASE 4 (80%)' }],
+    modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: CH3_RULES, available: true,
   },
   {
     id: 'gerson', name: 'GERSON', chapter: 4, sprite: 'boss_gerson',
@@ -188,12 +175,16 @@ export const FIGHTS: FightDef[] = [
     modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: ALL_RULES, available: true,
   },
   {
-    id: 'flowery', name: 'FLOWERY', chapter: 5, sprite: 'boss_flowery',
-    music: ['rakuichi_buster_wip.ogg', 'Flowerman_Arrangement.ogg', 'gameover_short.ogg', 'AUDIO_DEFEAT.ogg'],
+    id: 'titan', name: 'TITAN', chapter: 4, sprite: 'boss_titan',
+    music: ['wind_highplace.ogg', 'GALLERY.ogg', 'titan_battle.ogg', 'gameover_short.ogg', 'AUDIO_DEFEAT.ogg'],
     party: [1, 2, 3],
-    attacks: ['WALL TUTORIAL', 'PETAL JARONA', 'HEDGE CHASE', 'JARONA BARRAGE', "SETH'S BOXES", 'AQUA KNIVES', "SETH'S BOXES EX",
-      'ORANGE COMBO', 'JUST KIDDING', 'WILD CHASE', 'JUSTICE CHASE', 'SUPER JARONA', 'HARD JARONA'].map((name, id) => ({ id, name })),
-    phases: [2, 3, 4, 5, 6].map((id) => ({ id, name: `PHASE ${id}` })),
+    attacks: [
+      { id: 0, name: 'SWARM' }, { id: 1, name: 'GAZE' }, { id: 2, name: 'HEART GRIP' }, { id: 3, name: 'UNLEASHED' },
+      { id: 4, name: 'SLITHER' }, { id: 5, name: 'SWARM II' }, { id: 6, name: 'HANDS' }, { id: 7, name: 'UNLEASHED II' },
+      { id: 8, name: 'SLITHER II' }, { id: 9, name: 'SWARM III' }, { id: 10, name: 'HANDS II' }, { id: 11, name: 'DESPERATION' },
+      { id: 12, name: 'UNLEASHED III' },
+    ],
+    phases: [{ id: 3, name: 'SHIELD RETURNS' }, { id: 5, name: 'SHIELD RETURNS II' }, { id: 6, name: 'THIRD UNLEASH' }, { id: 7, name: 'REGENERATION' }, { id: 8, name: 'OLD MAN' }],
     modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: ALL_RULES, available: true,
   },
   {
@@ -206,6 +197,15 @@ export const FIGHTS: FightDef[] = [
     phases: [{ id: 2, name: 'SECOND DATE' }, { id: 3, name: 'GHOST' }, { id: 4, name: 'FINALE' }],
     modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: ALL_RULES, available: true,
     variants: [{ id: 'normal', name: 'DEFAULT BOMBS' }, { id: 'easy', name: 'NICER BOMBS' }, { id: 'harder', name: 'MEANER BOMBS' }],
+  },
+  {
+    id: 'flowery', name: 'FLOWERY', chapter: 5, sprite: 'boss_flowery',
+    music: ['rakuichi_buster_wip.ogg', 'Flowerman_Arrangement.ogg', 'gameover_short.ogg', 'AUDIO_DEFEAT.ogg'],
+    party: [1, 2, 3],
+    attacks: ['WALL TUTORIAL', 'PETAL JARONA', 'HEDGE CHASE', 'JARONA BARRAGE', "SETH'S BOXES", 'AQUA KNIVES', "SETH'S BOXES EX",
+      'ORANGE COMBO', 'JUST KIDDING', 'WILD CHASE', 'JUSTICE CHASE', 'SUPER JARONA', 'HARD JARONA'].map((name, id) => ({ id, name })),
+    phases: [2, 3, 4, 5, 6].map((id) => ({ id, name: `PHASE ${id}` })),
+    modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: ALL_RULES, available: true,
   },
 ];
 

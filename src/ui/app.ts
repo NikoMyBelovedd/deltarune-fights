@@ -465,7 +465,7 @@ class TitleScreen implements Screen {
 }
 
 class BossSelectScreen implements Screen {
-  sel = 0;
+  sel = Math.max(0, FIGHTS.findIndex((f) => f.id === store.settings.lastFight));
   constructor(private app: App) {}
   draw(g: Gfx): void {
     g.text('fnt_mainbig', 'SELECT A FIGHT', 320, 24, C.white, 1, 1);
@@ -504,6 +504,8 @@ class BossSelectScreen implements Screen {
       const f = FIGHTS[this.sel];
       if (!f.available) { g.sfx('snd_cantselect'); return; }
       g.sfx('snd_select');
+      store.settings.lastFight = f.id;
+      store.saveSettings();
       this.app.push(new SetupScreen(this.app, f));
     }
   }
@@ -561,8 +563,22 @@ class SetupScreen implements Screen {
     return rows;
   }
 
+  private savedJson = '';
+
+  /** Every change is kept (mode, variant, gear, items, dials, stats), not only when a fight starts. */
+  persist(): void {
+    const s = this.setup;
+    const saved: SavedSetup = { loadout: s.loadout, mode: s.mode, variant: s.variant, attack: s.attack, phase: s.phase, intro: s.intro, sandbox: s.sandbox, stats: s.stats, dials: s.dials };
+    const json = JSON.stringify(saved);
+    if (json !== this.savedJson) {
+      this.savedJson = json;
+      store.saveLoadout(s.fight.id, saved);
+    }
+  }
+
   draw(g: Gfx): void {
     const s = this.setup;
+    this.persist();
     g.text('fnt_mainbig', s.fight.name, 320, 16, C.white, 1, 1);
     g.darkbox(16, 56, 400, 436);
     const rows = this.rows();
