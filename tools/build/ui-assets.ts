@@ -99,7 +99,14 @@ const bosses: [number, string, string][] = [
   [4, 'spr_titan_rumble', 'boss_titan'], [4, 'spr_gerson_idle', 'boss_gerson'], [5, 'spr_flowery_idle', 'boss_flowery'], [5, 'spr_pink_idle', 'boss_pink'],
 ];
 if (process.env.PREVIEW) for (const spec of process.env.PREVIEW.split(',')) { const [c, n] = spec.split(':'); sprite(Number(c), n, `preview_${n}`); }
-for (const [ch, name, alias] of bosses) if (existsSync(join(ROOT, `.gamedata/ch${ch}/export/data.json`))) sprite(ch, name, alias);
+for (const [ch, name, alias] of bosses) {
+  // Recorded in-battle idle animations (tools/build/capture.ts) take priority over the plain sprite.
+  const cap = join(ROOT, '.gamedata/captured', alias);
+  if (existsSync(`${cap}.png`)) {
+    copyFileSync(`${cap}.png`, join(OUT, 'sprites', `${alias}.png`));
+    (manifest.sprites as Record<string, unknown>)[alias] = JSON.parse(readFileSync(`${cap}.json`, 'utf8'));
+  } else if (existsSync(join(ROOT, `.gamedata/ch${ch}/export/data.json`))) sprite(ch, name, alias);
+}
 for (const s of ['snd_menumove', 'snd_select', 'snd_cantselect', 'snd_equip', 'snd_error', 'snd_hurt1']) sfx(1, s);
 
 writeFileSync(join(OUT, 'manifest.json'), JSON.stringify(manifest));

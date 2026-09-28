@@ -418,25 +418,20 @@ function drawOptions(g: Gfx, opts: { label: string; value?: string; dim?: boolea
   });
 }
 
-function drawBoss(g: Gfx, f: FightDef, cx: number, cy: number, maxW: number, maxH: number, frame: number, dim = false): void {
+function drawBoss(g: Gfx, f: FightDef, cx: number, cy: number, maxW: number, maxH: number, _frame: number, dim = false): void {
   const m = g.spriteMeta(f.sprite);
   if (!m) return;
   const fit = Math.min(maxW / m.w, maxH / m.h);
   const scale = fit >= 1 ? Math.min(Math.floor(fit), 3) : fit;
-  // Single-frame sprites get a gentle hover so every boss feels alive (Spamton NEO hangs from his strings).
-  const bob = m.frames === 1 ? Math.round(Math.sin(g.time / 9) * 3 * scale) : 0;
-  const left = cx - (m.w * scale) / 2;
-  const top = cy - (m.h * scale) / 2 + bob;
-  const x = left + m.ox * scale;
-  const y = top + m.oy * scale;
   const alpha = dim ? 0.35 : 1;
-  if (f.id === 'spamton_neo') {
-    // puppet strings, like the fight
-    for (const sx of [0.3, 0.52, 0.74]) g.rect(left + m.w * scale * sx, cy - maxH / 2 - 8, 1, top - (cy - maxH / 2 - 8) + 6 * scale, '#1fd11f', alpha * 0.8);
-  }
-  // white outline so dark sprites (the Knight) read on black; the Knight's outline shimmers like its static
-  const shimmer = f.id === 'knight' ? 0.55 + 0.45 * Math.abs(Math.sin(g.time / 3.7) * Math.sin(g.time / 1.3)) : 0.9;
-  for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.sprite(f.sprite, frame, x + dx * 2, y + dy * 2, scale, scale, alpha * shimmer, C.white);
+  // Recorded idles carry their own frame rate; other sprites animate at the game's usual 5 fps.
+  const frame = (g.time * (m.fps ?? 5)) / 30;
+  // Single-frame sprites get a gentle hover so every boss feels alive.
+  const bob = m.frames === 1 ? Math.round(Math.sin(g.time / 9) * 3 * scale) : 0;
+  const x = cx - (m.w * scale) / 2 + m.ox * scale;
+  const y = cy - (m.h * scale) / 2 + m.oy * scale + bob;
+  // Recorded idles (Spamton NEO, the Knight) already contain everything; plain sprites get a white outline to read on black.
+  if (!m.fps) for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.sprite(f.sprite, frame, x + dx * 2, y + dy * 2, scale, scale, alpha * 0.9, C.white);
   g.sprite(f.sprite, frame, x, y, scale, scale, alpha);
 }
 

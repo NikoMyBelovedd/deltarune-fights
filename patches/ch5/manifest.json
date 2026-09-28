@@ -2,6 +2,11 @@
   "ops": [
     {
       "op": "replace",
+      "code": "gml_Object_obj_drweb_capturebg_Draw_0",
+      "file": "../common/capturebg_draw.gml"
+    },
+    {
+      "op": "replace",
       "code": "gml_GlobalScript_drweb",
       "file": "drweb_ch5.gml"
     },

@@ -1,6 +1,6 @@
 // Menu rendering: game sprites, GameMaker-style bitmap fonts and the dark-world text box.
 
-interface SpriteMeta { w: number; h: number; frames: number; ox: number; oy: number }
+interface SpriteMeta { w: number; h: number; frames: number; ox: number; oy: number; fps?: number }
 interface FontMeta { size: number; glyphs: Record<string, [number, number, number, number, number, number]> }
 interface UiManifest { sprites: Record<string, SpriteMeta>; fonts: Record<string, FontMeta>; sfx: string[] }
 

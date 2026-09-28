@@ -16,6 +16,8 @@ function drweb_load_config()
     global.drweb_attack = ini_read_real("fight", "attack", -1);
     global.drweb_phase = ini_read_real("fight", "phase", 0);
     global.drweb_seed = ini_read_real("fight", "seed", 0);
+    global.drweb_capture = ini_read_real("fight", "capture", 0);
+    global.drweb_capturekey = ini_read_real("fight", "capturekey", 1);
     global.drweb_speed = ini_read_real("dials", "speed", 100);
     global.drweb_damage = ini_read_real("dials", "damage", 100);
     global.drweb_iframes = ini_read_real("dials", "iframes", 100);
@@ -139,6 +141,8 @@ function drweb_restart(_why)
 // whenever the battle returns to the player's menu we start another enemy turn, the same way ambushes do.
 function drweb_battle_step()
 {
+    if (global.drweb_capture)
+        drweb_capture_step();
     if ((global.drweb_mode == "single" || global.drweb_mode == "endless") && global.myfight == 0 && global.mnfight == 0)
     {
         scr_ambush();
@@ -177,4 +181,33 @@ function drweb_turn_attack(_count)
         _a = drweb_bag_next(_count);
     drweb_emit("attack", _a);
     return _a;
+}
+
+// Capture mode (build tool only): once the first player turn has settled, hide everything but the boss and put a
+// flat key colour right behind it, so its real idle animation can be screenshotted for the menus.
+function drweb_capture_step()
+{
+    if (global.myfight != 0)
+        exit;
+    if (!variable_global_exists("drweb_capture_t"))
+        global.drweb_capture_t = 0;
+    global.drweb_capture_t += 1;
+    if (global.drweb_capture_t != 20)
+        exit;
+    // The drawn boss: some fights keep an extra, invisible instance of the enemy around.
+    var _boss = noone;
+    with (obj_monsterparent)
+    {
+        if (visible && _boss == noone)
+            _boss = id;
+    }
+    if (_boss == noone)
+        exit;
+    with (all)
+    {
+        if (id != _boss && object_index != obj_afterimage && !object_is_ancestor(object_index, obj_bulletparent))
+            visible = false;
+    }
+    var _bg = instance_create_depth(0, 0, _boss.depth + 5, obj_drweb_capturebg);
+    drweb_emit("capture", object_get_name(_boss.object_index) + " depth " + string(_boss.depth) + " bg " + string(_bg.depth) + " n " + string(instance_number(obj_monsterparent)));
 }
