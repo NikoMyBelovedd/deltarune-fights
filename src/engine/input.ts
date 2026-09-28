@@ -63,6 +63,9 @@ export class InputRouter {
   bindings: Bindings;
   private sink: Sink | null = null;
   private deadzone = 0.5;
+  private startHeld = false;
+  /** Called when a gamepad's Start button is pressed (pause). */
+  onPadStart: (() => void) | null = null;
 
   constructor(bindings: Bindings = DEFAULT_BINDINGS) {
     this.bindings = bindings;
@@ -123,8 +126,10 @@ export class InputRouter {
   private pollPads(): void {
     const pads = navigator.getGamepads?.() ?? [];
     const now = new Set<string>();
+    let start = false;
     for (const pad of pads) {
       if (!pad) continue;
+      if (pad.buttons[9]?.pressed) start = true; // Start / Options / Menu
       for (const a of ACTIONS) {
         let on = this.bindings.pad[a].some((b) => pad.buttons[b]?.pressed);
         if (!on && pad.axes.length >= 2) {
@@ -137,6 +142,8 @@ export class InputRouter {
         if (on) now.add(a);
       }
     }
+    if (start && !this.startHeld) this.onPadStart?.();
+    this.startHeld = start;
     for (const a of now) if (!this.padHeld.has(a)) this.press(ACTION_VK[a as Action], true);
     for (const a of this.padHeld) if (!now.has(a)) this.press(ACTION_VK[a as Action], false);
     this.padHeld = now;

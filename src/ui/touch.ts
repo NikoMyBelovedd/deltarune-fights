@@ -6,7 +6,8 @@ type Press = (action: Action, down: boolean) => void;
 const DIRS: Action[] = ['up', 'down', 'left', 'right'];
 
 export function isTouchDevice(): boolean {
-  return window.matchMedia?.('(pointer: coarse)').matches || 'ontouchstart' in window;
+  // iPadOS Safari reports itself as a Mac, so also trust maxTouchPoints.
+  return window.matchMedia?.('(pointer: coarse)').matches || 'ontouchstart' in window || navigator.maxTouchPoints > 1;
 }
 
 export function mountTouchControls(root: HTMLElement, press: Press, pause: () => void): void {

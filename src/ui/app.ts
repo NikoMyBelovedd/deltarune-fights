@@ -83,6 +83,7 @@ export class App {
     this.g.sfxVolume = store.settings.sfxVolume;
     this.host.setVolume(store.settings.volume);
     this.input.attach((vk, down) => this.onKey(vk, down));
+    this.input.onPadStart = () => this.menuKey('escape');
     // Escape is always ours (pause), never the game's.
     window.addEventListener('keydown', (e) => { if (e.code === 'Escape') { e.preventDefault(); this.menuKey('escape'); } }, true);
     if (isTouchDevice()) {
