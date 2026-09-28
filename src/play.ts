@@ -63,7 +63,43 @@ export async function fightManifest(fight: FightDef): Promise<BundleManifest> {
   return { bundle: m.bundle, dataPath: m.dataPath, files };
 }
 
-export async function startFight(host: GameHost, mount: HTMLElement, cfg: FightConfig): Promise<void> {
+export async function startFight(host: GameHost, mount: HTMLElement, cfg: FightConfig, playback?: Int32Array): Promise<void> {
   const manifest = await fightManifest(cfg.fight);
-  await host.start(mount, manifest, configToIni(cfg));
+  await host.start(mount, manifest, configToIni(cfg), playback);
+}
+
+// ---------------- replays ----------------
+export interface Replay {
+  v: 1;
+  boss: string;
+  ini: string;
+  /** data.win content hash the replay was recorded against */
+  data: string;
+  events: string; // base64 of Int32Array [frame, vk, down]*
+  result?: { time: number; hits: number; how: string };
+  date: string;
+}
+
+export function packEvents(ev: Int32Array): string {
+  const bytes = new Uint8Array(ev.buffer, ev.byteOffset, ev.byteLength);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
+export function unpackEvents(b64: string): Int32Array {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Int32Array(bytes.buffer);
+}
+
+export async function dataHash(fight: FightDef): Promise<string> {
+  const m = await chapterManifest(fight.chapter);
+  return m.files.find((f) => f.path === m.dataPath)?.hash ?? '';
+}
+
+export async function startReplay(host: GameHost, mount: HTMLElement, fight: FightDef, r: Replay): Promise<void> {
+  const manifest = await fightManifest(fight);
+  await host.start(mount, manifest, r.ini, unpackEvents(r.events));
 }

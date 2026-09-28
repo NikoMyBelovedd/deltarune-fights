@@ -1,0 +1,118 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 9fc3dbf..36b38a3 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -622,7 +622,7 @@ elseif(PLATFORM STREQUAL "web")
+             "-sENVIRONMENT=worker"
+             "-sWASMFS=1"
+             "-sEXPORTED_RUNTIME_METHODS=['HEAP8', 'HEAPU8', 'HEAPF32', 'ccall', 'cwrap', 'specialHTMLTargets', 'UTF8ToString']"
+-            "-sEXPORTED_FUNCTIONS=['_main', '_mountOpfs', '_startRunner', '_stopRunner', '_malloc', '_free', '_getKeyDownPtr', '_getKeyUpPtr', '_getKeyCount', '_setAudioSampleRate', '_pullAudioFrames']"
++            "-sEXPORTED_FUNCTIONS=['_main', '_mountOpfs', '_startRunner', '_stopRunner', '_malloc', '_free', '_getKeyDownPtr', '_getKeyUpPtr', '_getKeyCount', '_setAudioSampleRate', '_pullAudioFrames', '_setPaused', '_setRecording', '_getRecordCount', '_getRecordPtr', '_setPlayback', '_getFrame']"
+             "-sOFFSCREENCANVAS_SUPPORT=1"
+             "-sOFFSCREEN_FRAMEBUFFER=1"
+             "-sMIN_WEBGL_VERSION=2"
+diff --git a/src/web/main.c b/src/web/main.c
+index 6375bee..424c007 100644
+--- a/src/web/main.c
++++ b/src/web/main.c
+@@ -18,6 +18,39 @@ static EMSCRIPTEN_WEBGL_CONTEXT_HANDLE ctx = 0;
+ static Runner* gRunner;
+ static WebAudioSystem* gWebAudio = nullptr;
+ static int32_t gAudioSampleRate = 48000;
++static volatile int gPaused = 0;
++
++// deltaruneWEB replays: key events are recorded with the frame they were applied on, and played back exactly.
++typedef struct { int32_t frame; int32_t vk; int32_t down; } DrInput;
++static DrInput* gRec = nullptr;
++static int32_t gRecCount = 0;
++static int32_t gRecCap = 0;
++static int gRecording = 0;
++static DrInput* gPlay = nullptr;
++static int32_t gPlayCount = 0;
++static int32_t gPlayPos = 0;
++static int gPlayback = 0;
++
++static void recordInput(int32_t frame, int32_t vk, int32_t down) {
++    if (!gRecording) return;
++    if (gRecCount == gRecCap) {
++        gRecCap = gRecCap ? gRecCap * 2 : 1024;
++        gRec = (DrInput*) realloc(gRec, (size_t) gRecCap * sizeof(DrInput));
++    }
++    gRec[gRecCount++] = (DrInput) { frame, vk, down };
++}
++
++void setRecording(int on) { gRecording = on; gRecCount = 0; }
++int32_t getRecordCount(void) { return gRecCount; }
++DrInput* getRecordPtr(void) { return gRec; }
++// events must stay allocated (JS mallocs them) and be sorted by frame.
++void setPlayback(DrInput* events, int32_t count) { gPlay = events; gPlayCount = count; gPlayPos = 0; gPlayback = 1; }
++int32_t getFrame(void) { return gRunner ? (int32_t) gRunner->frameCount : 0; }
++
++// deltaruneWEB: freeze the game loop (no steps, no draws) while the page shows its pause menu.
++void setPaused(int paused) {
++    gPaused = paused;
++}
+ 
+ uint8_t keyDown[GML_KEY_COUNT] = {0};
+ uint8_t keyUp[GML_KEY_COUNT] = {0};
+@@ -114,6 +147,12 @@ void* loop() {
+ 
+     gRunner->gameStartTime = nowNanos();
+     while (!gRunner->shouldExit) {
++        if (gPaused) {
++            struct timespec pts = { 0, 16000000 };
++            nanosleep(&pts, nullptr);
++            lastFrameStartMs = emscripten_get_now();
++            continue;
++        }
+         double frameStartMs = emscripten_get_now();
+         gRunner->deltaTime = (frameStartMs - lastFrameStartMs) * 1000.0;
+         lastFrameStartMs = frameStartMs;
+@@ -121,14 +160,27 @@ void* loop() {
+         RunnerKeyboard_beginFrame(gRunner->keyboard);
+ 
+         // Process inputs
+-        repeat(GML_KEY_COUNT, i) {
+-            if (keyDown[i]) {
+-                RunnerKeyboard_onKeyDown(gRunner->keyboard, i);
+-                keyDown[i] = 0;
++        int32_t frameNo = (int32_t) gRunner->frameCount;
++        if (gPlayback) {
++            memset(keyDown, 0, sizeof(keyDown));
++            memset(keyUp, 0, sizeof(keyUp));
++            while (gPlayPos < gPlayCount && gPlay[gPlayPos].frame <= frameNo) {
++                DrInput ev = gPlay[gPlayPos++];
++                if (ev.down) RunnerKeyboard_onKeyDown(gRunner->keyboard, ev.vk);
++                else RunnerKeyboard_onKeyUp(gRunner->keyboard, ev.vk);
+             }
+-            if (keyUp[i]) {
+-                RunnerKeyboard_onKeyUp(gRunner->keyboard, i);
+-                keyUp[i] = 0;
++        } else {
++            repeat(GML_KEY_COUNT, i) {
++                if (keyDown[i]) {
++                    RunnerKeyboard_onKeyDown(gRunner->keyboard, i);
++                    recordInput(frameNo, i, 1);
++                    keyDown[i] = 0;
++                }
++                if (keyUp[i]) {
++                    RunnerKeyboard_onKeyUp(gRunner->keyboard, i);
++                    recordInput(frameNo, i, 0);
++                    keyUp[i] = 0;
++                }
+             }
+         }
+ 
+@@ -164,8 +216,10 @@ void* loop() {
+ 
+         // Frame pacing: sleep until the next frame is due, based on the room's speed.
+         // emscripten_get_now() returns milliseconds (performance.now()) and works in workers.
+-        if (gRunner->currentRoom != nullptr && gRunner->currentRoom->speed > 0) {
+-            double targetFrameTimeMs = 1000.0 / (double) gRunner->currentRoom->speed;
++        // deltaruneWEB: honour game_set_speed (the game-speed dial), like the desktop loop does.
++        double effectiveGameSpeed = Runner_getEffectiveGameSpeed(gRunner);
++        if (effectiveGameSpeed > 0.0) {
++            double targetFrameTimeMs = 1000.0 / effectiveGameSpeed;
+             double nextFrameTimeMs = lastFrameStartMs + targetFrameTimeMs;
+             double remainingMs = nextFrameTimeMs - emscripten_get_now();
+             // Sleep for most of the remaining time, then spin-wait for precision.

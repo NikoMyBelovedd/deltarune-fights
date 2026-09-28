@@ -26,6 +26,20 @@ function drweb_boot_fight()
         random_set_seed(global.drweb_seed);
     switch (global.drweb_boss)
     {
+        case "gerson":
+            // Hammer of Justice: room_dw_church_arena, Sanctuary 2 (Gerson's study only exists while plot < 242).
+            // flag 851: 1 = secret piano solved, first visit (full intro); 2 = met Gerson already (the game's own
+            // rematch path, used for "skip intro" and retries). 852 = axe already won (must be 0), 853 = loss counter
+            // (kept 0: > 0 routes the arena through call_later()).
+            drweb_ch4_party_state(240);
+            global.flag[852] = 0;
+            global.flag[853] = 0;
+            global.flag[851] = (global.drweb_intro == 0 || global.drweb_attempt > 0) ? 2 : 1;
+            global.flag[1548] = 1;
+            global.entrance = 0;
+            drweb_emit("start", "gerson");
+            room_goto(room_dw_church_arena);
+            break;
         default:
             // Titan: room_dw_churchc_titanclimb2_post, the top of the climb. tempflag[96] is the game's own
             // loss counter; > 0 selects the shortened retry intro. Keep it at 1 so the "sympathy" chests
@@ -124,9 +138,10 @@ function drweb_titan_step()
             global.monsterhp[myself] = floor(global.monstermaxhp[myself] * 0.62);
             drweb_titan_set_unleashed(true);
         }
-        if (_p == 8)
+        if (_p == 7)
         {
-            // Just above 50% HP: the next hit starts the regeneration / Old Man ending.
+            // REGENERATION: just above 50% HP with the shield gone; the next hit starts the "Did we do it...?"
+            // ending (obj_titan_enemy_Step_0: monsterhp <= 50% -> finalunleashphasedone, endingcon 1).
             phase = 6;
             phaseturn = 1;
             loopedphase6 = true;
@@ -138,15 +153,42 @@ function drweb_titan_step()
             global.monsterhp[myself] = floor(global.monstermaxhp[myself] * 0.5) + 1;
             drweb_titan_set_unleashed(true);
         }
+        if (_p == 8)
+        {
+            // OLD MAN: jump into the ending right where Gerson's hammer hits the Titan (endingcon 16), as if
+            // phase 7's third regeneration turn had just been talked through. The game's own script then plays
+            // Gerson's lines, adds DualBuster and moves to phase 8.
+            finalunleashphasedone = true;
+            phase = 7;
+            phaseturn = 3;
+            unleashcount = 3;
+            global.monsterhp[myself] = floor(global.monstermaxhp[myself] * 0.5);
+            global.canact[myself][3] = 0;
+            global.actname[myself][3] = "";
+            global.actactor[myself][3] = 0;
+            global.tension = global.maxtension;
+            with (obj_writer)
+                instance_destroy();
+            with (obj_face)
+                instance_destroy();
+            global.charturn = 3;
+            global.myfight = -1;
+            global.mnfight = 1;
+            talked = 0.1;
+            talktimer = 0;
+            drawstate = "defense";
+            endingcon = 16;
+            endingtimer = 0;
+        }
     }
     // Titan's own "enemytalk" moment (obj_titan_enemy_Step_0: scr_isphase("enemytalk") && talked == 0).
     // It has no speech balloon in phases 1-6: the attack was picked by event_user(0) at the end of the
     // previous turn, together with the menu flavour text. We overwrite that pick here.
-    if (global.monster[myself] == 1 && global.mnfight == 1 && talked == 0 && !finalunleashphasedone && phase <= 6)
+    if (global.monster[myself] == 1 && global.mnfight == 1 && talked == 0)
     {
         drweb_turns += 1;
         var _a = drweb_turn_attack(13);
-        if (_a >= 0)
+        if (_a >= 0 && !finalunleashphasedone && phase <= 6)
         {
             var _e = drweb_titan_attack(_a);
             phase = _e[0];
@@ -164,4 +206,140 @@ function drweb_titan_step()
                 global.monsterhp[myself] = max(global.monsterhp[myself], floor(global.monstermaxhp[myself] * 0.5) + 1);
         }
     }
+}
+
+// ---- Gerson (Hammer of Justice) ----
+// Runs at the end of obj_dw_church_arena's Create (manifest "append"). Starts the fight without the player walking.
+function drweb_gerson_arena_create()
+{
+    if (global.drweb_boss != "gerson")
+        exit;
+    if (scr_flag_get(851) == 2)
+    {
+        // Rematch path (scr_text case 1390 sets con = 25): pan to the arena, then con 11 starts the battle.
+        con = 25;
+    }
+    else
+    {
+        // First visit: what walking past x >= 410 does (obj_dw_church_arena_Step_0:5-10) -> con 2 = full intro cutscene.
+        con = 1;
+        alarm[0] = 1;
+        global.interact = 1;
+    }
+}
+
+// Scripted order: event_user(0) (Other_10:2170-2249) builds the pattern stored in attackpattern, then picks the
+// pattern for the NEXT turn from trueturn. Speech is keyed on `turn` (Step_0:128-282). Attack id == trueturn.
+function drweb_gerson_pattern(_t)
+{
+    var _p = [0, 1, 2, 3, 4, 72, 70, 6, 7, 12, 9, 47, 70, 13, 14, 53, 55, 56, 220];
+    return _p[clamp(_t, 0, 18)];
+}
+
+// Forces enemy turn _a (0..18 = scripted turns, 19 = the final HAMMER OF JUSTICE) with its own speech line.
+function drweb_gerson_force(_a)
+{
+    drweb_forced = _a;
+    gothitlastturn = 0;       // otherwise turn 1 replays the tutorial (Step_0:147-156)
+    repeatonce = 1;
+    if (_a >= 19)
+    {
+        // Step_0:121: progress >= 84 -> trueturn = 20 -> final speech (dialogue_string53..59) + pattern 19.
+        progress = 84;
+    }
+    else
+    {
+        progress = min(progress, 83);
+        trueturn = _a;
+        turn = _a;
+        attackpattern = drweb_gerson_pattern(_a);
+        reachedendphase = 0;
+    }
+}
+
+// Runs at the top of obj_hammer_of_justice_enemy's Step (as obj_hammer_of_justice_enemy).
+function drweb_gerson_step()
+{
+    var _loop = (global.drweb_mode == "single" || global.drweb_mode == "endless");
+    if (!variable_instance_exists(id, "drweb_init"))
+    {
+        drweb_init = 1;
+        drweb_turns = 0;
+        drweb_latch = 0;
+        drweb_forced = -1;
+        // Create sets global.invc = 0.5 (after drweb_apply_dials ran); re-apply the i-frames dial on top.
+        if (variable_global_exists("drweb_iframes"))
+            global.invc = 0.5 * global.drweb_iframes / 100;
+        var _p = global.drweb_phase;
+        if (_p > 0)
+        {
+            firstconversationhappened = true;
+            repeatonce = 1;
+            if (_p >= 20)
+            {
+                progress = 84;
+            }
+            else
+            {
+                trueturn = _p;
+                turn = _p;
+                attackpattern = drweb_gerson_pattern(_p);
+                progress = (_p >= 16) ? 75 : ((_p >= 12) ? 50 : 25);
+            }
+        }
+        else if (global.drweb_attempt > 0 && !_loop)
+        {
+            // The game's own retry (Create:95-101, flag 853 != 0): skip the tutorial turn 0.
+            trueturn = 1;
+            turn = 1;
+            attackpattern = 1;
+            repeatonce = 1;
+        }
+    }
+    // Gerson's turn start (Step_0:97): enemytalk && talked == 0 && endcon == 0 (+ waits for rude buster / item steal).
+    if (scr_isphase("enemytalk") && talked == 0 && endcon == 0)
+    {
+        if (!drweb_latch)
+        {
+            drweb_latch = 1;
+            drweb_turns += 1;
+            var _a = drweb_turn_attack(20);
+            if (_a >= 0)
+                drweb_gerson_force(_a);
+        }
+        if (_loop && drweb_forced >= 0 && drweb_forced < 19)
+            progress = min(progress, 83);    // mercy-laugh stars may still add progress before the block fires
+    }
+    else if (!scr_isphase("enemytalk"))
+    {
+        drweb_latch = 0;
+    }
+    if (_loop)
+    {
+        // Never reach the win cutscene (Step_0:883-893, 921-934) and never jump to the final phase on our own.
+        have_used_final_attack = false;
+        if (drweb_forced < 19)
+            progress = min(progress, 83);
+    }
+}
+
+// scr_damage: Susie at 0 HP is a *loss* here, not a game over (scr_damage:192-217 refills her HP and ends the
+// battle with flag[36] = 1). Practice / Single: keep fighting. Returns true to skip the loss.
+function drweb_gerson_down()
+{
+    if (global.drweb_mode == "practice" || global.drweb_mode == "single")
+    {
+        drweb_on_gameover();                  // emits "gameover", revives
+        global.hp[2] = global.maxhp[2];
+        return true;
+    }
+    return false;
+}
+
+// Arena Step (con 15, flag[36] > 0): the battle was lost. The real game plays a consolation scene and lets you
+// talk to Gerson for a rematch; we retry immediately (normal / hitless / endless).
+function drweb_gerson_lost()
+{
+    if (!drweb_on_gameover())
+        drweb_restart("gameover");
 }

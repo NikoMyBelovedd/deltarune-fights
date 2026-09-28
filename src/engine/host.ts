@@ -9,7 +9,8 @@ export type HostEvent =
   | { type: 'log'; level: string; text: string }
   | { type: 'started' }
   | { type: 'exit' }
-  | { type: 'error'; message: string };
+  | { type: 'error'; message: string }
+  | { type: 'replay'; id: number; events: Int32Array; frame: number };
 
 const ENGINE_URL = new URL('/engine/butterscotch.mjs', location.href).href;
 const WORKER_URL = '/engine/drweb-worker.js';
@@ -33,7 +34,7 @@ export class GameHost {
   }
 
   /** Starts a chapter bundle with the given drweb.ini config. Creates a fresh canvas + worker each time. */
-  async start(mount: HTMLElement, manifest: BundleManifest, ini: string): Promise<void> {
+  async start(mount: HTMLElement, manifest: BundleManifest, ini: string, playback?: Int32Array): Promise<void> {
     this.stop();
     if (!crossOriginIsolated) throw new Error('This page must be cross-origin isolated (COOP/COEP headers).');
 
@@ -82,8 +83,23 @@ export class GameHost {
       sampleRate: this.ctx.sampleRate,
       audioSab: ring,
       audioIdx: idx,
+      playback,
     });
   }
+
+  /** Inputs recorded so far this run, as flat [frame, vk, down] triples. */
+  replay(): Promise<{ events: Int32Array; frame: number }> {
+    const w = this.worker;
+    if (!w) return Promise.resolve({ events: new Int32Array(0), frame: 0 });
+    const id = ++this.replayId;
+    return new Promise((resolve) => {
+      const off = this.on((e) => {
+        if (e.type === 'replay' && e.id === id) { off(); resolve({ events: e.events, frame: e.frame }); }
+      });
+      w.postMessage({ type: 'replay', id });
+    });
+  }
+  private replayId = 0;
 
   key(code: number, down: boolean): void {
     this.worker?.postMessage({ type: 'key', code, down });

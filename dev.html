@@ -19,7 +19,7 @@
   import { GameHost } from '/src/engine/host.ts';
   import { InputRouter } from '/src/engine/input.ts';
   import { FIGHTS } from '/src/fights.ts';
-  import { startFight } from '/src/play.ts';
+  import { startFight, configToIni, fightManifest } from '/src/play.ts';
   const host = new GameHost();
   const input = new InputRouter();
   const log = document.getElementById('log');
@@ -41,6 +41,17 @@
       seed: Number(params.get('seed') ?? 0), weapons: {}, armors: {}, items: [], dials: { speed: Number(params.get('speed') ?? 100), damage: 100, iframes: 100 },
     });
   }
+  window.__host = host;
+  window.__playback = async (ini, events) => {
+    window.__events = [];
+    const f = FIGHTS.find((f) => f.id === (params.get('boss') ?? 'jevil'));
+    await host.start(document.getElementById('mount'), await fightManifest(f), ini, events);
+  };
+  window.__ini = () => configToIni({
+    fight: FIGHTS.find((f) => f.id === (params.get('boss') ?? 'jevil')),
+    variant: '', mode: params.get('mode') ?? 'normal', intro: params.get('intro') !== '0', attack: -1, phase: 0,
+    seed: Number(params.get('seed') ?? 0), weapons: {}, armors: {}, items: [], dials: { speed: 100, damage: 100, iframes: 100 },
+  });
   document.getElementById('go').onclick = go;
   if (params.has('auto')) go();
 </script>

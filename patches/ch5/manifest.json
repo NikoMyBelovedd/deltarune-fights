@@ -43,6 +43,28 @@
       "op": "prepend",
       "code": "gml_Object_obj_ch5_DW29_Step_0",
       "text": "drweb_flowery_room_step();"
+    },
+    {
+      "op": "prepend",
+      "code": "gml_Object_obj_flowery_enemy_Step_0",
+      "text": "drweb_flowery_step();"
+    },
+    {
+      "op": "find",
+      "code": "gml_Object_obj_flowery_enemy_Step_0",
+      "find": "room_goto(room_dw_fcastle_flowerclimb);",
+      "replace": "drweb_finish(\"thrown\");\n                room_goto(room_dw_fcastle_flowerclimb);"
+    },
+    {
+      "op": "prepend",
+      "code": "gml_Object_obj_pink_enemy_Step_0",
+      "text": "drweb_pink_step();"
+    },
+    {
+      "op": "find",
+      "code": "gml_Object_obj_date_controller_Step_0",
+      "find": "scr_wincombat();",
+      "replace": "drweb_finish(\"date\");\n        scr_wincombat();"
     }
   ]
 }

@@ -1,0 +1,98 @@
+{
+  "ops": [
+    {
+      "op": "replace",
+      "code": "gml_GlobalScript_drweb",
+      "file": "drweb_ch2.gml"
+    },
+    {
+      "op": "find",
+      "code": "gml_Object_obj_initializer2_Step_0",
+      "find": "room_goto(roomchoice);",
+      "replace": "drweb_boot_fight();"
+    },
+    {
+      "op": "find",
+      "code": "gml_GlobalScript_scr_damage",
+      "find": "global.inv = global.invc * 40;",
+      "replace": "drweb_ch2_hit(tdamage, target);\n        global.inv = global.invc * 40;"
+    },
+    {
+      "op": "find",
+      "code": "gml_GlobalScript_scr_damage_proportional",
+      "find": "global.inv = global.invc * 40;",
+      "replace": "drweb_ch2_hit(tdamage, target);\n        global.inv = global.invc * 40;"
+    },
+    {
+      "op": "find",
+      "code": "gml_GlobalScript_scr_damage_sneo_final_attack",
+      "find": "global.inv = global.invc * 40;",
+      "replace": "drweb_ch2_hit(tdamage, target);\n        global.inv = global.invc * 40;"
+    },
+    {
+      "op": "find",
+      "code": "gml_GlobalScript_scr_gameover",
+      "find": "if (room == room_dw_mansion_b_west_2f)",
+      "replace": "if (drweb_on_gameover())\n            exit;\n        if (room == room_dw_mansion_b_west_2f)"
+    },
+    {
+      "op": "find",
+      "code": "gml_GlobalScript_scr_tempload",
+      "find": "filechoicebk3 = global.filechoice;",
+      "replace": "drweb_restart(\"gameover\");\n    exit;\n    filechoicebk3 = global.filechoice;"
+    },
+    {
+      "op": "append",
+      "code": "gml_Object_obj_battlecontroller_Create_0",
+      "text": "drweb_ch2_on_battle();"
+    },
+    {
+      "op": "prepend",
+      "code": "gml_Object_obj_battlecontroller_Step_0",
+      "text": "drweb_battle_step();"
+    },
+    {
+      "op": "prepend",
+      "code": "gml_Object_obj_spamton_neo_enemy_Step_0",
+      "text": "drweb_sneo_step();"
+    },
+    {
+      "op": "append",
+      "code": "gml_Object_obj_ch2_sceneex2_Create_0",
+      "text": "drweb_sneo_scene_create();"
+    },
+    {
+      "op": "find",
+      "code": "gml_Object_obj_ch2_sceneex2_Step_0",
+      "find": "room_goto(room_dw_mansion_b_east_a);",
+      "replace": "drweb_finish(global.flag[571] == 1 ? \"violence\" : \"spare\");"
+    },
+    {
+      "op": "find",
+      "code": "gml_Object_obj_fountainkris_ch2_sideb_Step_0",
+      "find": "_event = instance_create(x + (sprite_width / 2), y + (sprite_width / 2) + 20, obj_darkfountain_event);\n    _event.depth = blackall.depth - 1;",
+      "replace": "drweb_finish(\"snowgrave\");"
+    },
+    {
+      "op": "prepend",
+      "code": "gml_Object_obj_queen_enemy_Step_0",
+      "text": "drweb_queen_step();"
+    },
+    {
+      "op": "prepend",
+      "code": "gml_Object_obj_queen_enemy_Other_10",
+      "text": "drweb_queen_pick();"
+    },
+    {
+      "op": "append",
+      "code": "gml_Object_obj_ch2_scene25_Create_0",
+      "text": "drweb_queen_scene_create();"
+    },
+    {
+      "op": "find",
+      "code": "gml_Object_obj_ch2_scene25_Step_0",
+      "find": "global.plot = 165;",
+      "replace": "global.plot = 165;\n    drweb_finish(global.flag[548] == 1 ? \"violence\" : \"pacify\");"
+    }
+  ]
+}

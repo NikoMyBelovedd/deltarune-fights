@@ -1,7 +1,7 @@
 // Assembles public/game/chN/ from the patched data.win and the local DELTARUNE install.
 // Usage: node tools/build/bundle.ts [chapters...]
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { homedir } from 'node:os';
 import { basename, dirname, join, relative } from 'node:path';
@@ -31,8 +31,8 @@ for (const ch of chapters.length ? chapters : [...new Set(FIGHTS.filter((f) => f
   const out = join(ROOT, '.gamedata/stage', `ch${ch}`);
   const pub = join(ROOT, 'public/game', `ch${ch}`);
   mkdirSync(out, { recursive: true });
-  rmSync(pub, { recursive: true, force: true });
   mkdirSync(pub, { recursive: true });
+  const written = new Set<string>();
   const patched = join(ROOT, '.gamedata/build', `ch${ch}`, 'data.win');
   if (!existsSync(patched)) throw new Error(`missing ${patched}; run tools/patch/build.sh ${ch}`);
 
@@ -56,7 +56,6 @@ for (const ch of chapters.length ? chapters : [...new Set(FIGHTS.filter((f) => f
   // Cloudflare Pages rejects files over 25 MiB, so big files are gzipped and split into parts under /packed.
   const PART = 20 * 1024 * 1024;
   const packed = join(ROOT, 'public/game', `ch${ch}-packed`);
-  rmSync(packed, { recursive: true, force: true });
   mkdirSync(packed, { recursive: true });
   const files = walk(out)
     .filter((p) => basename(p) !== 'files.json')
@@ -74,6 +73,7 @@ for (const ch of chapters.length ? chapters : [...new Set(FIGHTS.filter((f) => f
           for (let i = 0, n = 0; i < body.length; i += PART, n++) {
             const name = `${rel.replace(/[\/]/g, '_')}.${hash}.${n}${entry.gzip ? '.gz' : ''}.bin`;
             writeFileSync(join(packed, name), body.subarray(i, i + PART));
+            written.add(join(packed, name));
             entry.parts.push({ url: `/game/ch${ch}-packed/${name}`, size: Math.min(PART, body.length - i) });
           }
         }
@@ -81,9 +81,12 @@ for (const ch of chapters.length ? chapters : [...new Set(FIGHTS.filter((f) => f
       if (!entry.parts) {
         mkdirSync(dirname(join(pub, rel)), { recursive: true });
         copyFileSync(p, join(pub, rel));
+        written.add(join(pub, rel));
       }
       return entry;
     });
+  // Prune stale files in place (deleting the folders would upset dev-server watchers).
+  for (const dir of [pub, packed]) for (const f of walk(dir)) if (!written.has(f) && basename(f) !== 'files.json') unlinkSync(f);
   writeFileSync(join(pub, 'files.json'), JSON.stringify({ bundle: `ch${ch}`, dataPath: 'data.win', files }, null, 1));
   const total = files.reduce((a, f) => a + f.size, 0);
   console.log(`ch${ch}: ${files.length} files, ${(total / 1048576).toFixed(1)} MB`);

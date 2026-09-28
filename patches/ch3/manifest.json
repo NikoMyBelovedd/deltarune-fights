@@ -1,0 +1,83 @@
+{
+  "ops": [
+    {
+      "op": "replace",
+      "code": "gml_GlobalScript_drweb",
+      "file": "drweb_ch3.gml"
+    },
+    {
+      "op": "find",
+      "code": "gml_Object_obj_initializer2_Step_0",
+      "find": "room_goto(roomchoice);",
+      "replace": "drweb_boot_fight();"
+    },
+    {
+      "op": "find",
+      "code": "gml_GlobalScript_scr_damage",
+      "find": "global.inv = global.invc * 30;\n        scr_damage_check();",
+      "replace": "drweb_ch3_on_hit(tdamage, target);\n        global.inv = global.invc * 30;\n        scr_damage_check();"
+    },
+    {
+      "op": "find",
+      "code": "gml_GlobalScript_scr_gameover",
+      "find": "function scr_gameover()\n{",
+      "replace": "function scr_gameover()\n{\n    if (drweb_on_gameover())\n        exit;"
+    },
+    {
+      "op": "find",
+      "code": "gml_GlobalScript_scr_tempload",
+      "find": "filechoicebk3 = global.filechoice;",
+      "replace": "drweb_restart(\"gameover\");\n    exit;\n    filechoicebk3 = global.filechoice;"
+    },
+    {
+      "op": "append",
+      "code": "gml_Object_obj_battlecontroller_Create_0",
+      "text": "drweb_emit(\"battle\", global.encounterno);"
+    },
+    {
+      "op": "prepend",
+      "code": "gml_Object_obj_battlecontroller_Step_0",
+      "text": "drweb_battle_step();"
+    },
+    {
+      "op": "find",
+      "code": "gml_Object_obj_knight_enemy_Step_0",
+      "find": "if (!i_ex(obj_herosusie) || !i_ex(obj_heroralsei))\n{\n    if (debugvar == false && scr_debug())",
+      "replace": "drweb_knight_step();\nif (!i_ex(obj_herosusie) || !i_ex(obj_heroralsei))\n{\n    if (debugvar == false && scr_debug())"
+    },
+    {
+      "op": "find",
+      "code": "gml_Object_obj_knight_enemy_Step_0",
+      "find": "if (scr_get_knight_total_attempts() > 0)",
+      "replace": "if (global.drweb_active || scr_get_knight_total_attempts() > 0)"
+    },
+    {
+      "op": "find",
+      "code": "gml_Object_obj_ch3_PTB02_Step_0",
+      "find": "    var iniwrite = ossafe_ini_open(\"dr.ini\");\n    ini_write_real(scr_ini_chapter(global.chapter, global.filechoice), \"UraBoss\", battle_result);\n    ossafe_ini_close();\n    ossafe_savedata_save();",
+      "replace": "    if (!global.drweb_active)\n    {\n        var iniwrite = ossafe_ini_open(\"dr.ini\");\n        ini_write_real(scr_ini_chapter(global.chapter, global.filechoice), \"UraBoss\", battle_result);\n        ossafe_ini_close();\n        ossafe_savedata_save();\n    }"
+    },
+    {
+      "op": "find",
+      "code": "gml_Object_obj_ch3_PTB02_Step_0",
+      "find": "if (con == 12 && !i_ex(obj_cutscene_master))\n{",
+      "replace": "if (con == 12 && !i_ex(obj_cutscene_master))\n{\n    drweb_finish((global.flag[1047] == 1) ? \"knight\" : \"lost\");"
+    },
+    {
+      "op": "find",
+      "code": "gml_Object_obj_ch3_BTB06_Step_0",
+      "find": "    global.plot = 310;\n    room_goto(room_dw_snow_zone);",
+      "replace": "    global.plot = 310;\n    drweb_finish(\"tenna\");"
+    },
+    {
+      "op": "prepend",
+      "code": "gml_Object_obj_tenna_enemy_Step_0",
+      "text": "drweb_tenna_step();"
+    },
+    {
+      "op": "append",
+      "code": "gml_Object_obj_tenna_enemy_Other_10",
+      "text": "drweb_tenna_choose();"
+    }
+  ]
+}

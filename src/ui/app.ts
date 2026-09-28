@@ -2,7 +2,7 @@
 import { GameHost, type HostEvent } from '../engine/host.ts';
 import { ACTION_VK, ACTIONS, DEFAULT_BINDINGS, InputRouter, VK, type Action } from '../engine/input.ts';
 import { CHAR_HEADS, CHAR_NAMES, FIGHTS, MODE_NAMES, type FightDef, type Loadout, type ModeId } from '../fights.ts';
-import { DEFAULT_DIALS, dialsModified, startFight, type Dials, type FightConfig } from '../play.ts';
+import { configToIni, dataHash, DEFAULT_DIALS, dialsModified, packEvents, startFight, startReplay, type Dials, type FightConfig, type Replay } from '../play.ts';
 import { store } from '../store.ts';
 import { C, Gfx } from './gfx.ts';
 import { decodeShare, encodeShare } from './share.ts';
@@ -56,7 +56,9 @@ export class App {
     setup: Setup; started: number; pausedAt: number; pausedTotal: number; battleAt: number;
     hits: number; attempts: number; restarts: number; endless: number; done: boolean;
     clean: number; hitsAtAttack: number; attacksSeen: number;
+    ini: string; replay: Replay | null;
   } | null = null;
+  lastReplay: Replay | null = null;
   loading: { loaded: number; total: number; error?: string } | null = null;
 
   constructor(root: HTMLElement) {
@@ -142,7 +144,7 @@ export class App {
     const r = this.run;
     if (!r || !this.playing || !store.settings.showHud) { this.hud.textContent = ''; return; }
     const t = this.elapsed();
-    const parts = [MODE_NAMES[r.setup.mode], `TIME ${fmtTime(t)}`, `HITS ${r.hits}`];
+    const parts = [r.replay ? `REPLAY · ${MODE_NAMES[r.setup.mode]}` : MODE_NAMES[r.setup.mode], `TIME ${fmtTime(t)}`, `HITS ${r.hits}`];
     if (r.setup.mode === 'hitless' || r.setup.mode === 'normal') parts.push(`TRY ${r.attempts + 1}`);
     if (r.setup.mode === 'endless') parts.push(`SURVIVED ${r.endless}`, `BEST ${store.record(this.recordKey(r.setup)).endlessBest}`);
     if (r.setup.mode === 'single') parts.push(`CLEAN ${r.clean} / ${Math.max(0, r.attacksSeen - 1)}`);
@@ -164,7 +166,7 @@ export class App {
 
   private onKey(vk: number, down: boolean): void {
     if (this.routingToGame) {
-      this.host.key(vk, down);
+      if (!this.run?.replay) this.host.key(vk, down);
       return;
     }
     const action = (Object.keys(ACTION_VK) as Action[]).find((a) => ACTION_VK[a] === vk);
@@ -208,7 +210,7 @@ export class App {
       intro: playIntro,
       attack: setup.mode === 'single' ? setup.attack : -1,
       phase: setup.phase,
-      seed: 0,
+      seed: 1 + Math.floor(Math.random() * 2147483000),
       weapons: setup.loadout.weapons,
       armors: setup.loadout.armors,
       items: setup.loadout.items,
@@ -217,13 +219,31 @@ export class App {
     };
     store.settings.seenIntro[introKey] = true;
     store.saveSettings();
-    this.run = { setup, started: performance.now(), pausedAt: 0, pausedTotal: 0, battleAt: 0, hits: 0, attempts: 0, restarts: 0, endless: 0, done: false, clean: 0, hitsAtAttack: 0, attacksSeen: 0 };
+    const ini = configToIni(cfg);
+    this.run = { setup, started: performance.now(), pausedAt: 0, pausedTotal: 0, battleAt: 0, hits: 0, attempts: 0, restarts: 0, endless: 0, done: false, clean: 0, hitsAtAttack: 0, attacksSeen: 0, ini, replay: null };
     this.loading = { loaded: 0, total: 0 };
     this.playing = true;
     this.push(new LoadingScreen(this));
     store.updateRecord(this.recordKey(setup), (r) => { r.attempts++; });
     try {
       await startFight(this.host, this.gameMount, cfg);
+    } catch (e) {
+      this.loading = { loaded: 0, total: 0, error: String((e as Error).message ?? e) };
+    }
+  }
+
+  /** Plays a recorded run back. Nothing is saved to records. */
+  async watch(r: Replay): Promise<void> {
+    const fight = FIGHTS.find((f) => f.id === r.boss);
+    if (!fight) return;
+    const setup = setupFromIni(fight, r.ini);
+    this.run = { setup, started: performance.now(), pausedAt: 0, pausedTotal: 0, battleAt: 0, hits: 0, attempts: 0, restarts: 0, endless: 0, done: false, clean: 0, hitsAtAttack: 0, attacksSeen: 0, ini: r.ini, replay: r };
+    this.loading = { loaded: 0, total: 0 };
+    this.playing = true;
+    this.push(new LoadingScreen(this));
+    try {
+      if (r.data && r.data !== (await dataHash(fight))) console.warn('replay was recorded against a different game build; it may desync');
+      await startReplay(this.host, this.gameMount, fight, r);
     } catch (e) {
       this.loading = { loaded: 0, total: 0, error: String((e as Error).message ?? e) };
     }
@@ -259,7 +279,7 @@ export class App {
         } else if (e.name === 'hit') {
           r.hits++;
         } else if (e.name === 'restart') {
-          if (r.setup.mode === 'endless') this.saveEndless();
+          if (r.setup.mode === 'endless' && !r.replay) this.saveEndless();
           r.attempts++;
           r.restarts++;
           if (r.setup.mode === 'hitless' || r.setup.mode === 'endless') r.hits = 0;
@@ -292,13 +312,25 @@ export class App {
     if (!r || r.done) return;
     r.done = true;
     const time = this.elapsed();
+    if (r.replay) {
+      this.host.stop();
+      this.playing = false;
+      this.popTo((s) => s instanceof TitleScreen || s instanceof SetupScreen);
+      this.push(new ResultScreen(this, r.setup, { how, time, hits: r.hits, attempts: r.attempts + 1, newBest: false, replay: true }));
+      return;
+    }
+    // Grab the input log before the runner goes away.
+    const ini = r.ini;
+    void Promise.all([this.host.replay(), dataHash(r.setup.fight)]).then(([rep, data]) => {
+      this.lastReplay = { v: 1, boss: r.setup.fight.id, ini, data, events: packEvents(rep.events), result: { time, hits: r.hits, how }, date: new Date().toISOString() };
+      this.host.stop();
+    });
     const rec = store.updateRecord(this.recordKey(r.setup), (x) => {
       x.clears++;
       if (x.bestTime === null || time < x.bestTime) x.bestTime = time;
       if (x.bestHits === null || r.hits < x.bestHits) x.bestHits = r.hits;
       if (r.hits === 0) x.hitless = true;
     });
-    this.host.stop();
     this.playing = false;
     this.popTo((s) => s instanceof SetupScreen);
     this.push(new ResultScreen(this, r.setup, { how, time, hits: r.hits, attempts: r.attempts + 1, newBest: rec.bestTime === time }));
@@ -320,7 +352,7 @@ export class App {
   }
 
   quitGame(): void {
-    if (this.run?.setup.mode === 'endless') this.saveEndless();
+    if (this.run?.setup.mode === 'endless' && !this.run.replay) this.saveEndless();
     this.host.stop();
     this.playing = false;
     this.run = null;
@@ -340,6 +372,36 @@ export class App {
     store.saveSettings();
     this.fit();
   }
+}
+
+// =============================================================================================
+// Replay files
+// =============================================================================================
+
+function pickReplay(done: (r: Replay) => void): void {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.drreplay,application/json';
+  input.onchange = async () => {
+    const f = input.files?.[0];
+    if (!f) return;
+    try {
+      const r = JSON.parse(await f.text()) as Replay;
+      if (r.v === 1 && r.ini && r.events && FIGHTS.some((x) => x.id === r.boss)) done(r);
+    } catch { /* not a replay */ }
+  };
+  input.click();
+}
+
+/** Rebuilds a Setup from a replay's ini, for labels and records display. */
+function setupFromIni(fight: FightDef, ini: string): Setup {
+  const get = (k: string) => ini.match(new RegExp(`^${k}=(.*)$`, 'm'))?.[1] ?? '';
+  const num = (k: string, d: number) => { const v = Number(get(k)); return Number.isFinite(v) && get(k) !== '' ? v : d; };
+  return {
+    fight, mode: (get('mode') || 'normal') as ModeId, variant: get('variant'), attack: num('attack', -1), phase: num('phase', 0),
+    intro: get('intro') === '1', sandbox: false, loadout: structuredClone(fight.gear.defaults), stats: {},
+    dials: { speed: num('speed', 100), damage: num('damage', 100), iframes: num('iframes', 100) },
+  };
 }
 
 // =============================================================================================
@@ -375,14 +437,14 @@ function drawBoss(g: Gfx, f: FightDef, cx: number, cy: number, maxW: number, max
 
 class TitleScreen implements Screen {
   sel = 0;
-  opts = ['FIGHT', 'SETTINGS', 'CREDITS'];
+  opts = ['FIGHT', 'WATCH A REPLAY', 'SETTINGS', 'CREDITS'];
   constructor(private app: App) {}
   draw(g: Gfx): void {
     const t = g.time;
     g.text('fnt_mainbig', 'DELTARUNE', 320, 110, C.white, 2, 1);
     g.text('fnt_mainbig', 'BOSS FIGHTS', 320, 180, C.gray, 1, 1);
     this.opts.forEach((o, i) => {
-      const y = 270 + i * 44;
+      const y = 250 + i * 44;
       g.text('fnt_mainbig', o, 320, y, i === this.sel ? C.yellow : C.white, 1, 1);
       if (i === this.sel) g.heart(320 - g.textWidth('fnt_mainbig', o) / 2 - 30, y + 8);
     });
@@ -395,8 +457,9 @@ class TitleScreen implements Screen {
     if (k === 'confirm') {
       g.sfx('snd_select');
       if (this.sel === 0) this.app.push(new BossSelectScreen(this.app));
-      if (this.sel === 1) this.app.push(new SettingsScreen(this.app));
-      if (this.sel === 2) this.app.push(new CreditsScreen(this.app));
+      if (this.sel === 1) pickReplay((r) => void this.app.watch(r));
+      if (this.sel === 2) this.app.push(new SettingsScreen(this.app));
+      if (this.sel === 3) this.app.push(new CreditsScreen(this.app));
     }
   }
 }
@@ -915,27 +978,50 @@ class PauseScreen implements Screen {
 
 class ResultScreen implements Screen {
   sel = 0;
-  opts = ['FIGHT AGAIN', 'CHANGE SETUP', 'FIGHT SELECT'];
-  constructor(private app: App, private s: Setup, private r: { how: string; time: number; hits: number; attempts: number; newBest: boolean }) {}
+  opts: string[];
+  msg = '';
+  constructor(private app: App, private s: Setup, private r: { how: string; time: number; hits: number; attempts: number; newBest: boolean; replay?: boolean }) {
+    this.opts = r.replay ? ['WATCH AGAIN', 'BACK'] : ['FIGHT AGAIN', 'WATCH REPLAY', 'SAVE REPLAY', 'CHANGE SETUP', 'FIGHT SELECT'];
+  }
   draw(g: Gfx): void {
-    g.text('fnt_mainbig', 'YOU WON!', 320, 40, C.yellow, 2, 1);
-    drawBoss(g, this.s.fight, 320, 170, 140, 110, g.time / 6);
-    g.darkbox(120, 236, 520, 350);
-    g.text('fnt_mainbig', `TIME   ${fmtTime(this.r.time)}${this.r.newBest ? '  NEW BEST!' : ''}`, 150, 254, this.r.newBest ? C.yellow : C.white);
-    g.text('fnt_mainbig', `HITS   ${this.r.hits}${this.r.hits === 0 ? '  NO HIT!' : ''}`, 150, 286, this.r.hits === 0 ? C.yellow : C.white);
-    g.text('fnt_mainbig', `TRIES  ${this.r.attempts}`, 150, 318, C.white);
-    drawOptions(g, this.opts.map((label) => ({ label })), this.sel, 200, 372, 34);
+    g.text('fnt_mainbig', this.r.replay ? 'REPLAY OVER' : 'YOU WON!', 320, 24, C.yellow, 2, 1);
+    drawBoss(g, this.s.fight, 150, 150, 140, 110, g.time / 6);
+    g.darkbox(260, 90, 620, 214);
+    g.text('fnt_mainbig', `TIME  ${fmtTime(this.r.time)}`, 286, 106, this.r.newBest ? C.yellow : C.white);
+    if (this.r.newBest) g.text('fnt_main', 'NEW BEST!', 600, 114, C.yellow, 1, 2);
+    g.text('fnt_mainbig', `HITS  ${this.r.hits}`, 286, 140, this.r.hits === 0 ? C.yellow : C.white);
+    if (this.r.hits === 0) g.text('fnt_main', 'NO HIT!', 600, 148, C.yellow, 1, 2);
+    g.text('fnt_mainbig', `TRIES ${this.r.attempts}`, 286, 174, C.white);
+    g.darkbox(120, 236, 520, 250 + this.opts.length * 36);
+    drawOptions(g, this.opts.map((label) => ({ label })), this.sel, 160, 256, 36);
+    if (this.msg) g.text('fnt_main', this.msg, 320, 460, C.gray, 1, 1);
   }
   key(k: MenuKey): void {
     const g = this.app.g;
-    if (k === 'up' || k === 'down') { this.sel = (this.sel + (k === 'up' ? -1 : 1) + 3) % 3; g.sfx('snd_menumove'); }
-    if (k === 'confirm') {
-      g.sfx('snd_select');
-      this.app.pop();
-      if (this.sel === 0) void this.app.launch(this.s);
-      if (this.sel === 2) this.app.popTo((s) => s instanceof BossSelectScreen);
+    const n = this.opts.length;
+    if (k === 'up' || k === 'down') { this.sel = (this.sel + (k === 'up' ? -1 : 1) + n) % n; g.sfx('snd_menumove'); }
+    if (k === 'cancel') { this.app.pop(); return; }
+    if (k !== 'confirm') return;
+    g.sfx('snd_select');
+    const o = this.opts[this.sel];
+    const rep = this.app.lastReplay;
+    if (o === 'FIGHT AGAIN') { this.app.pop(); void this.app.launch(this.s); }
+    if (o === 'WATCH REPLAY' || o === 'WATCH AGAIN') {
+      const r = this.r.replay ? this.app.run?.replay ?? rep : rep;
+      if (r) { this.app.pop(); void this.app.watch(r); } else this.msg = 'Replay not ready yet.';
     }
-    if (k === 'cancel') this.app.pop();
+    if (o === 'SAVE REPLAY') {
+      if (!rep) { this.msg = 'Replay not ready yet.'; return; }
+      const blob = new Blob([JSON.stringify(rep)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${rep.boss}-${rep.date.slice(0, 19).replace(/[:T]/g, '-')}.drreplay`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      this.msg = 'Saved!';
+    }
+    if (o === 'CHANGE SETUP' || o === 'BACK') this.app.pop();
+    if (o === 'FIGHT SELECT') { this.app.pop(); this.app.popTo((s) => s instanceof BossSelectScreen); }
   }
 }
 

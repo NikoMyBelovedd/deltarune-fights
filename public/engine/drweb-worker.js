@@ -117,7 +117,7 @@ function startAudioPump(sab, idxSab, sampleRate) {
     while (want > 0) {
       const n = Math.min(want, heapFrames);
       Module._pullAudioFrames(heapPtr, n);
-      const src = Module.HEAPF32.subarray(heapPtr >> 2, (heapPtr >> 2) + n * 2);
+      const src = new Float32Array(Module.HEAPU8.buffer, heapPtr, n * 2);
       for (let i = 0; i < n; i++) {
         const o = ((w + i) % cap) * 2;
         ring[o] = src[i * 2];
@@ -144,6 +144,15 @@ async function start(msg) {
     keyDownPtr = Module._getKeyDownPtr();
     keyUpPtr = Module._getKeyUpPtr();
     Module._setAudioSampleRate(msg.sampleRate);
+    if (msg.playback && msg.playback.length) {
+      // flat [frame, vk, down, ...] -> wasm heap (kept alive for the whole run)
+      const n = msg.playback.length / 3;
+      const ptr = Module._malloc(msg.playback.length * 4);
+      new Int32Array(Module.HEAPU8.buffer, ptr, msg.playback.length).set(msg.playback);
+      Module._setPlayback(ptr, n);
+    } else {
+      Module._setRecording(1);
+    }
     running = true;
     Module.ccall('startRunner', null, ['string', 'string'], [
       `/butterscotch/games/${msg.bundle}/${msg.dataPath}`,
@@ -196,6 +205,17 @@ self.onmessage = async (ev) => {
       paused = !!msg.paused;
       if (Module && running) Module._setPaused(paused ? 1 : 0);
       break;
+    case 'replay': {
+      // Snapshot of everything recorded so far, as a flat [frame, vk, down, ...] array.
+      let events = new Int32Array(0);
+      if (Module) {
+        const n = Module._getRecordCount();
+        const ptr = Module._getRecordPtr();
+        if (n && ptr) events = new Int32Array(Module.HEAPU8.buffer, ptr, n * 3).slice();
+      }
+      post({ type: 'replay', id: msg.id, events, frame: Module ? Module._getFrame() : 0 }, [events.buffer]);
+      break;
+    }
     case 'stop':
       if (Module && running) Module._stopRunner();
       running = false;
