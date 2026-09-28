@@ -16,6 +16,11 @@ function drweb_ch2_mansion_state()
         global.charauto[_i] = 0;
     global.plot = 160;
     global.flag[9] = 1;
+    // Story unlocks from Cyber City that a new Chapter 2 file doesn't have yet:
+    // flag[34] = 0 is the new battle menu where Susie and Ralsei have their own ACTs (S-Action / R-Action),
+    // set by obj_ch2_cyber01; Susie learns UltimatHeal (spell 11) in obj_ch2_city07/city08.
+    global.flag[34] = 0;
+    scr_spellget(2, 11);
     global.entrance = 0;
     global.interact = 0;
     global.facing = 0;
