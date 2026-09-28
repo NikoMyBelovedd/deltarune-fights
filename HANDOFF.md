@@ -9,6 +9,11 @@ Read `PLAN.md` for the agreed scope and `docs/porting-guide.md` for how a fight 
 - The page is `src/` (Vite + TS): menus in `src/ui/app.ts`, the engine host in `src/engine/host.ts`, and the fight registry in `src/fights.ts`. The worker is `public/engine/drweb-worker.js` (OPFS cache, gzip parts, audio ring, keys, replays).
 - No game files are in git. Build them with `npm run game`; dev server with `tools/dev-server.sh` (port 5317).
 
+## Live
+- Site: https://deltarune-fights.pages.dev (Cloudflare Pages project `deltarune-fights`, deploy with `npm run deploy`)
+- Source: https://github.com/NikoMyBelovedd/deltarune-fights (public, AGPL-3.0; no game files anywhere in history)
+- Regression: `tests/matrix.sh` runs all 10 fights x 5 modes + variants headlessly (53 runs, all OK at last run)
+
 ## Status
 - **All ten fights are playable** in Normal, Hitless, Practice, Single Attack and Endless, with phase select and variants:
   - Jevil, King (Ch1)
@@ -39,5 +44,4 @@ Read `PLAN.md` for the agreed scope and `docs/porting-guide.md` for how a fight 
 - Cloudflare Pages has a 25 MiB per-file limit; the bundler's gzip and split step handles it.
 
 ## Pending user decisions
-1. Run `! npx wrangler login`, then `npm run deploy` (Pages project `deltarune-fights`).
-2. Create a public GitHub repo and push. AGPL requires the engine source to be available once the site is live. Nothing has been pushed yet; commits are local only.
+- None blocking. Possible next steps: record real battle idles for the other 8 menu previews (tools/build/capture.ts), research story-legal gear lists for Ch2-5, nicer attack names for Knight/Tenna/Gerson.
