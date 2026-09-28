@@ -58,7 +58,7 @@
       "op": "find",
       "code": "gml_Object_obj_flowery_enemy_Step_0",
       "find": "room_goto(room_dw_fcastle_flowerclimb);",
-      "replace": "drweb_finish(\"thrown\");\n                room_goto(room_dw_fcastle_flowerclimb);"
+      "replace": "drweb_emit(\"ending\", \"climb\");\n                room_goto(room_dw_fcastle_flowerclimb);"
     },
     {
       "op": "prepend",
@@ -76,6 +76,12 @@
       "code": "gml_GlobalScript_snd_init",
       "find": "function snd_init(arg0)\n{",
       "replace": "function snd_init(arg0)\n{\n    drweb_emit(\"music\", arg0);"
+    },
+    {
+      "op": "find",
+      "code": "gml_Object_obj_plat_finalflowery_Step_0",
+      "find": "room_goto(room_dw_post_flowery_battle);",
+      "replace": "drweb_finish(global.flag[1852] == 2 ? \"ending2\" : \"ending1\");\n            room_goto(room_dw_post_flowery_battle);"
     }
   ]
 }

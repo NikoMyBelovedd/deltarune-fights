@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <title>DELTARUNE Boss Fights</title>
 <meta name="description" content="Fan-made: fight DELTARUNE's bosses in your browser, running the original game logic.">
 <style>
@@ -21,6 +23,30 @@
   #fatal { position: fixed; inset: 0; z-index: 9; background: #000; color: #fff; display: flex; align-items: center; justify-content: center;
     font: 16px/1.6 ui-monospace, monospace; padding: 24px; text-align: center; white-space: pre-wrap; }
   #fatal[hidden] { display: none; }
+  /* ---- touch controls ---- */
+  body.has-touch { touch-action: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  body.has-touch #root { align-items: flex-start; padding-top: max(62px, calc(env(safe-area-inset-top) + 58px)); }
+  @media (orientation: landscape) { body.has-touch #root { align-items: center; padding-top: 0; } }
+  #touch { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  #touch .t-pad, #touch .t-btn, #touch .t-pause { pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; }
+  .t-pad { position: absolute; left: max(18px, env(safe-area-inset-left)); bottom: max(22px, env(safe-area-inset-bottom));
+    width: min(42vw, 170px); aspect-ratio: 1; border-radius: 50%; border: 2px solid rgba(255,255,255,.28); background: rgba(255,255,255,.06); }
+  .t-cross { position: absolute; inset: 14%; background:
+    linear-gradient(rgba(255,255,255,.18), rgba(255,255,255,.18)) 50% 0 / 34% 100% no-repeat,
+    linear-gradient(rgba(255,255,255,.18), rgba(255,255,255,.18)) 0 50% / 100% 34% no-repeat; border-radius: 10%; }
+  .t-pad[data-dir~="up"] { box-shadow: inset 0 18px 18px -12px rgba(255,255,0,.55); }
+  .t-pad[data-dir~="down"] { box-shadow: inset 0 -18px 18px -12px rgba(255,255,0,.55); }
+  .t-pad[data-dir~="left"] { box-shadow: inset 18px 0 18px -12px rgba(255,255,0,.55); }
+  .t-pad[data-dir~="right"] { box-shadow: inset -18px 0 18px -12px rgba(255,255,0,.55); }
+  .t-btns { position: absolute; right: max(16px, env(safe-area-inset-right)); bottom: max(22px, env(safe-area-inset-bottom)); width: min(44vw, 190px); aspect-ratio: 1; }
+  .t-btn { position: absolute; width: 38%; aspect-ratio: 1; border-radius: 50%; border: 2px solid rgba(255,255,255,.3);
+    background: rgba(255,255,255,.07); color: rgba(255,255,255,.75); font: bold 22px/1 ui-monospace, Menlo, monospace; padding: 0; }
+  .t-btn.on { background: rgba(255,255,0,.35); color: #000; }
+  .t-z { right: 0; top: 18%; } .t-x { left: 22%; bottom: 0; } .t-c { left: 0; top: 0; width: 30%; font-size: 16px; }
+  .t-pause { position: absolute; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); width: 44px; height: 44px;
+    border-radius: 10px; border: 2px solid rgba(255,255,255,.3); background: rgba(0,0,0,.4); color: rgba(255,255,255,.8); font: bold 16px ui-monospace, monospace; }
+  body.has-touch #hud { top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); right: auto; bottom: auto; transform: none; text-align: left; white-space: normal; max-width: 60vw; }
+  @media (orientation: landscape) { body.has-touch #hud { white-space: pre; } }
 </style>
 </head>
 <body>

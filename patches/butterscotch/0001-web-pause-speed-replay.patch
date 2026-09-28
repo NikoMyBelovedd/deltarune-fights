@@ -12,10 +12,19 @@ index 9fc3dbf..36b38a3 100644
              "-sOFFSCREEN_FRAMEBUFFER=1"
              "-sMIN_WEBGL_VERSION=2"
 diff --git a/src/web/main.c b/src/web/main.c
-index 6375bee..424c007 100644
+index 6375bee..81ce2eb 100644
 --- a/src/web/main.c
 +++ b/src/web/main.c
-@@ -18,6 +18,39 @@ static EMSCRIPTEN_WEBGL_CONTEXT_HANDLE ctx = 0;
+@@ -5,6 +5,8 @@
+ #include <emscripten.h>
+ #include <emscripten/html5.h>
+ #include <emscripten/wasmfs.h>
++#include <emscripten/threading.h>
++#include <pthread.h>
+ #include <GLES3/gl3.h>
+ #include "data_win.h"
+ #include "noop_audio_system.h"
+@@ -18,6 +20,39 @@ static EMSCRIPTEN_WEBGL_CONTEXT_HANDLE ctx = 0;
  static Runner* gRunner;
  static WebAudioSystem* gWebAudio = nullptr;
  static int32_t gAudioSampleRate = 48000;
@@ -55,64 +64,252 @@ index 6375bee..424c007 100644
  
  uint8_t keyDown[GML_KEY_COUNT] = {0};
  uint8_t keyUp[GML_KEY_COUNT] = {0};
-@@ -114,6 +147,12 @@ void* loop() {
+@@ -109,96 +144,102 @@ static int mkdirP(const char* path) {
+     return 0;
+ }
  
-     gRunner->gameStartTime = nowNanos();
-     while (!gRunner->shouldExit) {
-+        if (gPaused) {
-+            struct timespec pts = { 0, 16000000 };
-+            nanosleep(&pts, nullptr);
-+            lastFrameStartMs = emscripten_get_now();
-+            continue;
+-void* loop() {
+-    double lastFrameStartMs = emscripten_get_now(); // for delta_time and frame pacing
++// deltaruneWEB: the runner, its WebGL context and the frame loop all live on one pthread (the canvas is transferred
++// to it), driven by emscripten_set_main_loop. Before, the context lived on the worker's main thread and every GL call
++// from the loop thread was proxied across threads synchronously, which made draw-heavy fights crawl; the loop also
++// spin-waited between frames. Now each browser frame callback runs at most one game step, paced to the room speed.
++static double gLastStepMs = 0.0;
++static double gNextStepMs = 0.0;
+ 
+-    gRunner->gameStartTime = nowNanos();
+-    while (!gRunner->shouldExit) {
+-        double frameStartMs = emscripten_get_now();
+-        gRunner->deltaTime = (frameStartMs - lastFrameStartMs) * 1000.0;
+-        lastFrameStartMs = frameStartMs;
++static void shutdownRunner(void) {
++    logInfo("Cleaning up runner!\n");
++    emscripten_cancel_main_loop();
+ 
+-        RunnerKeyboard_beginFrame(gRunner->keyboard);
++    gRunner->audioSystem->vtable->destroy(gRunner->audioSystem);
++    gRunner->audioSystem = nullptr;
++    gWebAudio = nullptr;
++    gRunner->renderer->vtable->destroy(gRunner->renderer);
+ 
+-        // Process inputs
++    DataWin* dataWin = gRunner->dataWin;
++    VMContext* vm = gRunner->vmContext;
++    Runner_free(gRunner);
++    VM_free(vm);
++    DataWin_free(dataWin);
++
++    // We want to *know* when the runner has actually exited, because we also need to track things like "Leave Game" buttons/actions in the game
++    MAIN_THREAD_EM_ASM({ postMessage({ type: 'runnerExit' }); });
++}
++
++static void runFrame(void* arg) {
++    (void) arg;
++    if (gRunner->shouldExit) {
++        shutdownRunner();
++        return;
++    }
++    double now = emscripten_get_now();
++    if (gPaused) {
++        gNextStepMs = now;
++        gLastStepMs = now;
++        return;
++    }
++    // Pace game steps to the room speed (and the game-speed dial). The browser calls us every display frame.
++    double effectiveGameSpeed = Runner_getEffectiveGameSpeed(gRunner);
++    double stepMs = effectiveGameSpeed > 0.0 ? 1000.0 / effectiveGameSpeed : 1000.0 / 30.0;
++    if (now + 1.0 < gNextStepMs) return;
++    gNextStepMs += stepMs;
++    if (now - gNextStepMs > stepMs * 4) gNextStepMs = now + stepMs; // fell far behind (tab hidden): don't burst
++
++    gRunner->deltaTime = (now - gLastStepMs) * 1000.0;
++    gLastStepMs = now;
++
++    RunnerKeyboard_beginFrame(gRunner->keyboard);
++
++    // Process inputs
++    int32_t frameNo = (int32_t) gRunner->frameCount;
++    if (gPlayback) {
++        memset(keyDown, 0, sizeof(keyDown));
++        memset(keyUp, 0, sizeof(keyUp));
++        while (gPlayPos < gPlayCount && gPlay[gPlayPos].frame <= frameNo) {
++            DrInput ev = gPlay[gPlayPos++];
++            if (ev.down) RunnerKeyboard_onKeyDown(gRunner->keyboard, ev.vk);
++            else RunnerKeyboard_onKeyUp(gRunner->keyboard, ev.vk);
 +        }
-         double frameStartMs = emscripten_get_now();
-         gRunner->deltaTime = (frameStartMs - lastFrameStartMs) * 1000.0;
-         lastFrameStartMs = frameStartMs;
-@@ -121,14 +160,27 @@ void* loop() {
-         RunnerKeyboard_beginFrame(gRunner->keyboard);
- 
-         // Process inputs
--        repeat(GML_KEY_COUNT, i) {
--            if (keyDown[i]) {
--                RunnerKeyboard_onKeyDown(gRunner->keyboard, i);
--                keyDown[i] = 0;
-+        int32_t frameNo = (int32_t) gRunner->frameCount;
-+        if (gPlayback) {
-+            memset(keyDown, 0, sizeof(keyDown));
-+            memset(keyUp, 0, sizeof(keyUp));
-+            while (gPlayPos < gPlayCount && gPlay[gPlayPos].frame <= frameNo) {
-+                DrInput ev = gPlay[gPlayPos++];
-+                if (ev.down) RunnerKeyboard_onKeyDown(gRunner->keyboard, ev.vk);
-+                else RunnerKeyboard_onKeyUp(gRunner->keyboard, ev.vk);
++    } else {
+         repeat(GML_KEY_COUNT, i) {
+             if (keyDown[i]) {
+                 RunnerKeyboard_onKeyDown(gRunner->keyboard, i);
++                recordInput(frameNo, i, 1);
+                 keyDown[i] = 0;
              }
--            if (keyUp[i]) {
--                RunnerKeyboard_onKeyUp(gRunner->keyboard, i);
--                keyUp[i] = 0;
-+        } else {
-+            repeat(GML_KEY_COUNT, i) {
-+                if (keyDown[i]) {
-+                    RunnerKeyboard_onKeyDown(gRunner->keyboard, i);
-+                    recordInput(frameNo, i, 1);
-+                    keyDown[i] = 0;
-+                }
-+                if (keyUp[i]) {
-+                    RunnerKeyboard_onKeyUp(gRunner->keyboard, i);
-+                    recordInput(frameNo, i, 0);
-+                    keyUp[i] = 0;
-+                }
+             if (keyUp[i]) {
+                 RunnerKeyboard_onKeyUp(gRunner->keyboard, i);
++                recordInput(frameNo, i, 0);
+                 keyUp[i] = 0;
              }
          }
- 
-@@ -164,8 +216,10 @@ void* loop() {
- 
-         // Frame pacing: sleep until the next frame is due, based on the room's speed.
-         // emscripten_get_now() returns milliseconds (performance.now()) and works in workers.
+-
+-        emscripten_webgl_make_context_current(ctx);
+-
+-        float audioDt = (float) (gRunner->deltaTime / 1000000.0);
+-        if (0.0f > audioDt) audioDt = 0.0f;
+-        if (audioDt > 0.1f) audioDt = 0.1f;
+-        gRunner->audioSystem->vtable->update(gRunner->audioSystem, audioDt);
+-
+-        // Run one game step (Begin Step, Keyboard, Alarms, Step, End Step, room transitions)
+-        Runner_step(gRunner);
+-
+-        int32_t gameW = (int32_t) gRunner->dataWin->gen8.defaultWindowWidth;
+-        int32_t gameH = (int32_t) gRunner->dataWin->gen8.defaultWindowHeight;
+-
+-        Runner_drawPre(gRunner, 640, 480);
+-
+-        Runner_beginFrame(gRunner, gameW, gameH, 640, 480, 640, 480);
+-
+-        Runner_drawViews(gRunner, gameW, gameH, false);
+-        gRunner->renderer->vtable->endFrameInit(gRunner->renderer);
+-        Runner_drawPost(gRunner, 640, 480);
+-        gRunner->renderer->vtable->endFrameEnd(gRunner->renderer);
+-        Runner_drawGUI(gRunner, 640, 480, gameW, gameH);
+-
+-        // Just like glfwSwapBuffers.
+-        // Only swap when there isn't a room change to match the original runner.
+-        if (gRunner->pendingRoom == -1) {
+-            emscripten_webgl_commit_frame();
+-        }
+-        Runner_handlePendingRoomChange(gRunner);
+-
+-        // Frame pacing: sleep until the next frame is due, based on the room's speed.
+-        // emscripten_get_now() returns milliseconds (performance.now()) and works in workers.
 -        if (gRunner->currentRoom != nullptr && gRunner->currentRoom->speed > 0) {
 -            double targetFrameTimeMs = 1000.0 / (double) gRunner->currentRoom->speed;
-+        // deltaruneWEB: honour game_set_speed (the game-speed dial), like the desktop loop does.
-+        double effectiveGameSpeed = Runner_getEffectiveGameSpeed(gRunner);
-+        if (effectiveGameSpeed > 0.0) {
-+            double targetFrameTimeMs = 1000.0 / effectiveGameSpeed;
-             double nextFrameTimeMs = lastFrameStartMs + targetFrameTimeMs;
-             double remainingMs = nextFrameTimeMs - emscripten_get_now();
-             // Sleep for most of the remaining time, then spin-wait for precision.
+-            double nextFrameTimeMs = lastFrameStartMs + targetFrameTimeMs;
+-            double remainingMs = nextFrameTimeMs - emscripten_get_now();
+-            // Sleep for most of the remaining time, then spin-wait for precision.
+-            if (remainingMs > 2.0) {
+-                struct timespec ts;
+-                ts.tv_sec = 0;
+-                ts.tv_nsec = (long) ((remainingMs - 1.0) * 1000000.0);
+-                nanosleep(&ts, nullptr);
+-            }
+-            while (emscripten_get_now() < nextFrameTimeMs) {
+-                // Spin-wait for the remaining sub-millisecond
+-            }
+-        }
+     }
+ 
+-    // Cleanup
+-    logInfo("Cleaning up runner!\n");
++    float audioDt = (float) (gRunner->deltaTime / 1000000.0);
++    if (0.0f > audioDt) audioDt = 0.0f;
++    if (audioDt > 0.1f) audioDt = 0.1f;
++    gRunner->audioSystem->vtable->update(gRunner->audioSystem, audioDt);
+ 
+-    gRunner->audioSystem->vtable->destroy(gRunner->audioSystem);
+-    gRunner->audioSystem = nullptr;
+-    gWebAudio = nullptr;
+-    gRunner->renderer->vtable->destroy(gRunner->renderer);
++    // Run one game step (Begin Step, Keyboard, Alarms, Step, End Step, room transitions)
++    Runner_step(gRunner);
+ 
+-    DataWin* dataWin = gRunner->dataWin;
+-    VMContext* vm = gRunner->vmContext;
+-    Runner_free(gRunner);
+-    VM_free(vm);
+-    DataWin_free(dataWin);
++    int32_t gameW = (int32_t) gRunner->dataWin->gen8.defaultWindowWidth;
++    int32_t gameH = (int32_t) gRunner->dataWin->gen8.defaultWindowHeight;
+ 
+-    // We want to *know* when the runner has actually exited, because we also need to track things like "Leave Game" buttons/actions in the game
+-    MAIN_THREAD_EM_ASM({ postMessage({ type: 'runnerExit' }); });
++    Runner_drawPre(gRunner, 640, 480);
++    Runner_beginFrame(gRunner, gameW, gameH, 640, 480, 640, 480);
++    Runner_drawViews(gRunner, gameW, gameH, false);
++    gRunner->renderer->vtable->endFrameInit(gRunner->renderer);
++    Runner_drawPost(gRunner, 640, 480);
++    gRunner->renderer->vtable->endFrameEnd(gRunner->renderer);
++    Runner_drawGUI(gRunner, 640, 480, gameW, gameH);
+ 
+-    return nullptr;
++    // The OffscreenCanvas presents when this callback returns.
++    Runner_handlePendingRoomChange(gRunner);
+ }
+ 
+ void setWindowTitle(const char* title) {
+@@ -207,7 +248,12 @@ void setWindowTitle(const char* title) {
+ 
+ // gamePath: WASMFS path to the data.win to load (example: "/butterscotch/games/undertale/data.win").
+ // savesPath: WASMFS directory where saves should live (example: "/butterscotch/saves/undertale" - Created if it does not exist).
+-void startRunner(const char* gamePath, const char* savesPath) {
++typedef struct { char* gamePath; char* savesPath; } StartArgs;
++
++static void* runnerThread(void* raw) {
++    StartArgs* a = (StartArgs*) raw;
++    const char* gamePath = a->gamePath;
++    const char* savesPath = a->savesPath;
+     logInfo("Starting runner! gamePath=%s savesPath=%s\n", gamePath, savesPath);
+ 
+     EmscriptenWebGLContextAttributes attrs;
+@@ -216,13 +262,12 @@ void startRunner(const char* gamePath, const char* savesPath) {
+     attrs.majorVersion = 2;
+     attrs.minorVersion = 0;
+     attrs.alpha = 0;
+-    attrs.antialias = 0; // Required to avoid "WebGL warning: blitFramebuffer: DRAW_FRAMEBUFFER may not have multiple samples."
+-    // Both of these are required to allow us to use emscripten_webgl_commit_frame
+-    attrs.explicitSwapControl = true;
+-    attrs.renderViaOffscreenBackBuffer = true;
++    attrs.antialias = 0;
++    // The canvas was transferred to this thread: the context is ours, no proxying, and frames present on yield.
++    attrs.explicitSwapControl = false;
++    attrs.renderViaOffscreenBackBuffer = false;
++    attrs.proxyContextToMainThread = EMSCRIPTEN_WEBGL_CONTEXT_PROXY_DISALLOW;
+ 
+-    // Yes, "#canvas" feels nasty as HELL
+-    // But that's how Emscripten works for SOME REASON
+     ctx = emscripten_webgl_create_context("#canvas", &attrs);
+     if (0 >= ctx) {
+         logError("Failed to create WebGL context: %d\n", (int)ctx);
+@@ -233,7 +278,6 @@ void startRunner(const char* gamePath, const char* savesPath) {
+ 
+     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+     glClear(GL_COLOR_BUFFER_BIT);
+-
+     // Make sure the saves directory exists. The FileSystem impl will write into it.
+     if (savesPath != nullptr && savesPath[0] != '\0') {
+         if (mkdirP(savesPath) != 0) {
+@@ -307,10 +351,31 @@ void startRunner(const char* gamePath, const char* savesPath) {
+     // Initialize the first room and fire Game Start / Room Start events
+     Runner_initFirstRoom(runner);
+ 
+-    // Start a new thread
++    gRunner->gameStartTime = nowNanos();
++    gLastStepMs = emscripten_get_now();
++    gNextStepMs = gLastStepMs;
++    free(a->gamePath);
++    free(a->savesPath);
++    free(a);
++    // requestAnimationFrame isn't available in this nested worker, so poll with a ~4 ms timer; runFrame only steps
++    // (and draws) when the next game step is due, and the canvas presents when the callback returns.
++    emscripten_set_main_loop_arg(runFrame, nullptr, 240, 1);
++    return nullptr;
++}
++
++// gamePath: WASMFS path to the data.win to load (example: "/butterscotch/games/undertale/data.win").
++// savesPath: WASMFS directory where saves should live (example: "/butterscotch/saves/undertale" - Created if it does not exist).
++void startRunner(const char* gamePath, const char* savesPath) {
++    StartArgs* a = (StartArgs*) safeMalloc(sizeof(StartArgs));
++    a->gamePath = safeStrdup(gamePath);
++    a->savesPath = safeStrdup(savesPath != nullptr ? savesPath : "");
++    pthread_attr_t attr;
++    pthread_attr_init(&attr);
++    emscripten_pthread_attr_settransferredcanvases(&attr, "#canvas");
+     pthread_t tid;
+-    pthread_create(&tid, NULL, loop, NULL);
++    pthread_create(&tid, &attr, runnerThread, a);
+     pthread_detach(tid);
++    pthread_attr_destroy(&attr);
+ }
+ 
+ void stopRunner() {

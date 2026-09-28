@@ -171,12 +171,15 @@ self.onmessage = async (ev) => {
     case 'init': {
       try {
         const { default: createButterscotch } = await import(msg.engineUrl);
+        // The runner thread takes the canvas over (pthread_create transfers "#canvas" = Module.canvas). We already
+        // hold an OffscreenCanvas, so hand it over through a canvas-shaped wrapper.
+        const canvasHandle = { id: 'canvas', width: 640, height: 480, transferControlToOffscreen: () => msg.canvas };
         Module = await createButterscotch({
+          canvas: canvasHandle,
           print: onPrint,
           printErr: (t) => post({ type: 'log', level: 'error', text: t }),
           locateFile: (p) => new URL(p, msg.engineUrl).href,
         });
-        Module.specialHTMLTargets['#canvas'] = msg.canvas;
         post({ type: 'ready' });
       } catch (e) {
         post({ type: 'error', message: String(e && e.stack ? e.stack : e) });

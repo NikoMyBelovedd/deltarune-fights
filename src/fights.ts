@@ -214,7 +214,7 @@ export const FIGHTS: FightDef[] = [
   },
   {
     id: 'flowery', name: 'FLOWERY', chapter: 5, sprite: 'boss_flowery',
-    music: ['rakuichi_buster_wip.ogg', 'Flowerman_Arrangement.ogg', 'gameover_short.ogg', 'AUDIO_DEFEAT.ogg'],
+    music: ['rakuichi_buster_wip.ogg', 'Flowerman_Arrangement.ogg', 'rudebuster_boss.ogg', 'battle.ogg', 'gameover_short.ogg', 'AUDIO_DEFEAT.ogg'],
     party: [1, 2, 3],
     attacks: ['WALL TUTORIAL', 'PETAL JARONA', 'HEDGE CHASE', 'JARONA BARRAGE', "SETH'S BOXES", 'AQUA KNIVES', "SETH'S BOXES EX",
       'ORANGE COMBO', 'JUST KIDDING', 'WILD CHASE', 'JUSTICE CHASE', 'SUPER JARONA', 'HARD JARONA'].map((name, id) => ({ id, name })),

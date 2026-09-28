@@ -109,6 +109,11 @@ export class InputRouter {
     this.press(vk, e.type === 'keydown');
   };
 
+  /** Presses from on-screen touch controls, routed like a physical key bound to that action. */
+  virtual(action: Action, down: boolean): void {
+    this.press(ACTION_VK[action], down);
+  }
+
   releaseAll = (): void => {
     for (const [vk, n] of this.held) if (n > 0) this.sink?.(vk, false);
     this.held.clear();

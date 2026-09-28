@@ -6,6 +6,7 @@ import { configToIni, dataHash, DEFAULT_DIALS, dialsModified, packEvents, startF
 import { store } from '../store.ts';
 import { C, Gfx } from './gfx.ts';
 import { decodeShare, encodeShare } from './share.ts';
+import { isTouchDevice, mountTouchControls } from './touch.ts';
 
 interface GearEntry { id: number; name: string; desc: string; at: number; df: number; mag: number; ability?: string; who?: number[]; usable?: boolean }
 interface GearTable { weapons: GearEntry[]; armors: GearEntry[]; items: GearEntry[] }
@@ -84,6 +85,14 @@ export class App {
     this.input.attach((vk, down) => this.onKey(vk, down));
     // Escape is always ours (pause), never the game's.
     window.addEventListener('keydown', (e) => { if (e.code === 'Escape') { e.preventDefault(); this.menuKey('escape'); } }, true);
+    if (isTouchDevice()) {
+      mountTouchControls(document.getElementById('root')!, (a, down) => {
+        void this.audio.resume();
+        this.host.resumeAudio();
+        this.input.virtual(a, down);
+      }, () => this.menuKey('escape'));
+      this.fit();
+    }
     const shared = new URLSearchParams(location.search).get('s');
     this.push(new TitleScreen(this));
     if (shared) {
@@ -103,7 +112,12 @@ export class App {
   }
 
   fit(): void {
-    const vw = window.innerWidth, vh = window.innerHeight;
+    let vw = window.innerWidth, vh = window.innerHeight;
+    // Touch devices: keep the controls clear of the game (below it in portrait, beside it in landscape).
+    if (document.body.classList.contains('has-touch')) {
+      if (vh > vw) vh = Math.max(200, vh - Math.min(vh * 0.42, 300) - 60);
+      else vw = Math.max(320, vw - 2 * (Math.min(vw * 0.22, 200) + 20));
+    }
     let w = Math.min(vw, (vh * 4) / 3);
     if (store.settings.scale === 'integer' && w >= 640) w = Math.floor(w / 640) * 640;
     this.stage.style.width = `${Math.floor(w)}px`;
