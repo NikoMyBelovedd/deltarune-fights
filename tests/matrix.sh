@@ -6,18 +6,18 @@ cases=()
 add() { cases+=("$1|$2|$3"); }   # chapter|name|ini-body
 for spec in "1 jevil" "1 king" "2 spamton_neo" "2 queen" "3 tenna" "3 knight" "4 gerson" "4 titan" "5 pink" "5 flowery"; do
   set -- $spec; ch=$1; b=$2
-  add $ch "$b-normal"   "boss=$b\nmode=normal\nintro=0"
-  add $ch "$b-hitless"  "boss=$b\nmode=hitless\nintro=0"
-  add $ch "$b-practice" "boss=$b\nmode=practice\nintro=0"
-  add $ch "$b-single"   "boss=$b\nmode=single\nintro=0\nattack=1"
-  add $ch "$b-endless"  "boss=$b\nmode=endless\nintro=0"
+  add $ch "$b-normal"   "boss=$b;mode=normal;intro=0"
+  add $ch "$b-hitless"  "boss=$b;mode=hitless;intro=0"
+  add $ch "$b-practice" "boss=$b;mode=practice;intro=0"
+  add $ch "$b-single"   "boss=$b;mode=single;intro=0;attack=1"
+  add $ch "$b-endless"  "boss=$b;mode=endless;intro=0"
 done
-add 2 "sneo-snowgrave" "boss=spamton_neo\nvariant=snowgrave\nmode=normal\nintro=0"
-add 5 "pink-easy"      "boss=pink\nvariant=easy\nmode=normal\nintro=0"
-add 5 "pink-harder"    "boss=pink\nvariant=harder\nmode=normal\nintro=0"
+add 2 "sneo-snowgrave" "boss=spamton_neo;variant=snowgrave;mode=normal;intro=0"
+add 5 "pink-easy"      "boss=pink;variant=easy;mode=normal;intro=0"
+add 5 "pink-harder"    "boss=pink;variant=harder;mode=normal;intro=0"
 run() {
   IFS='|' read -r ch name body <<< "$1"
-  printf "[fight]\n$body\n" > "$OUT/ini/$name.ini"
+  printf "[fight]\n%s\n" "$(echo "$body" | tr ";" "\n")" > "$OUT/ini/$name.ini"
   timeout 600 tools/patch/run-desktop.sh "$ch" "$OUT/ini/$name.ini" --headless --playback-inputs "$PWD/tests/inputs/mash-z-long.json" --exit-at-frame 4000 > "$OUT/$name.log" 2>&1
   local battle=$(grep -c "DRWEB battle" "$OUT/$name.log") attack=$(grep -c "DRWEB attack" "$OUT/$name.log") hit=$(grep -c "DRWEB hit" "$OUT/$name.log")
   local restart=$(grep -c "DRWEB restart" "$OUT/$name.log") crash=$(grep -ciE "segfault|abort|fatal|VM: Error|stack overflow" "$OUT/$name.log")
