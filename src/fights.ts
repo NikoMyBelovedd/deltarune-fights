@@ -32,6 +32,8 @@ export interface FightDef {
   variants?: FightVariant[];
   /** Party character ids in slot order (1 Kris, 2 Susie, 3 Ralsei, 4 Noelle). */
   party: number[];
+  /** Party overrides for specific variants. */
+  variantParty?: Record<string, number[]>;
   /** Attacks for Single Attack mode, in the boss's own attack ids. Empty = mode unavailable. */
   attacks: { id: number; name: string }[];
   /** Phase starts. Empty = whole fight only. */
@@ -134,6 +136,7 @@ export const FIGHTS: FightDef[] = [
     phases: [{ id: 2, name: 'LATE FIGHT' }, { id: 3, name: 'UNDER 30% HP' }, { id: 4, name: 'FINALE' }],
     modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: CH2_MANSION, available: true,
     variants: [{ id: 'normal', name: 'NORMAL' }, { id: 'snowgrave', name: 'SNOWGRAVE' }],
+    variantParty: { snowgrave: [1] },
   },
   {
     id: 'queen', name: 'QUEEN', chapter: 2, sprite: 'boss_queen',
@@ -216,3 +219,7 @@ export const MODE_NAMES: Record<ModeId, string> = {
 
 export const CHAR_NAMES: Record<number, string> = { 1: 'KRIS', 2: 'SUSIE', 3: 'RALSEI', 4: 'NOELLE' };
 export const CHAR_HEADS: Record<number, string> = { 1: 'spr_headkris', 2: 'spr_headsusie', 3: 'spr_headralsei', 4: 'spr_headnoelle' };
+
+export function partyOf(f: FightDef, variant: string): number[] {
+  return f.variantParty?.[variant] ?? f.party;
+}

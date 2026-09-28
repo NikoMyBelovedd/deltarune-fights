@@ -1,7 +1,7 @@
 // The site shell: DELTARUNE-style menus drawn on a 640x480 canvas, and the running fight underneath.
 import { GameHost, type HostEvent } from '../engine/host.ts';
 import { ACTION_VK, ACTIONS, DEFAULT_BINDINGS, InputRouter, VK, type Action } from '../engine/input.ts';
-import { CHAR_HEADS, CHAR_NAMES, FIGHTS, isLegal, MODE_NAMES, type FightDef, type Loadout, type ModeId } from '../fights.ts';
+import { CHAR_HEADS, CHAR_NAMES, FIGHTS, isLegal, MODE_NAMES, partyOf, type FightDef, type Loadout, type ModeId } from '../fights.ts';
 import { configToIni, dataHash, DEFAULT_DIALS, dialsModified, packEvents, startFight, startReplay, type Dials, type FightConfig, type Replay } from '../play.ts';
 import { store } from '../store.ts';
 import { C, Gfx } from './gfx.ts';
@@ -576,7 +576,7 @@ class SetupScreen implements Screen {
     if (s.mode === 'endless') g.text('fnt_main', `MOST ATTACKS SURVIVED ${rec.endlessBest}`, 520, 286, C.white, 1, 1);
     else if (s.mode !== 'single') g.text('fnt_main', `BEST ${rec.bestTime !== null ? fmtTime(rec.bestTime) : '--'}  FEWEST HITS ${rec.bestHits ?? '--'}`, 520, 286, C.white, 1, 1);
     const gear = this.app.gearCache.get(s.fight.chapter);
-    s.fight.party.forEach((c, i) => {
+    partyOf(s.fight, s.variant).forEach((c, i) => {
       const y = 320 + i * 44;
       g.sprite(CHAR_HEADS[c], 0, 420, y);
       const w = gear?.weapons.find((x) => x.id === s.loadout.weapons[c]);
@@ -644,7 +644,7 @@ class SetupScreen implements Screen {
   enforceLegal(): void {
     const s = this.setup;
     const rules = s.fight.gear;
-    for (const c of s.fight.party) {
+    for (const c of partyOf(s.fight, s.variant)) {
       if (s.loadout.weapons[c] !== undefined && !isLegal(rules.weapons, s.loadout.weapons[c], 'weapons') && s.loadout.weapons[c] !== rules.defaults.weapons[c]) s.loadout.weapons[c] = rules.defaults.weapons[c];
       if (s.loadout.armors[c]) s.loadout.armors[c] = s.loadout.armors[c].map((a) => (a === 0 || isLegal(rules.armors, a, 'armors') ? a : 0)) as [number, number];
     }
@@ -682,7 +682,7 @@ class EquipScreen implements Screen {
   draw(g: Gfx): void {
     const gear = this.app.gearCache.get(this.s.fight.chapter);
     g.text('fnt_mainbig', 'EQUIPMENT', 320, 16, C.white, 1, 1);
-    const party = this.s.fight.party;
+    const party = partyOf(this.s.fight, this.s.variant);
     const colW = 600 / party.length;
     party.forEach((c, i) => {
       const x = 20 + i * colW;
@@ -715,7 +715,7 @@ class EquipScreen implements Screen {
 
   key(k: MenuKey): void {
     const g = this.app.g;
-    const n = this.s.fight.party.length;
+    const n = partyOf(this.s.fight, this.s.variant).length;
     if (k === 'left' || k === 'right') { this.col = (this.col + (k === 'left' ? -1 : 1) + n) % n; g.sfx('snd_menumove'); }
     if (k === 'up' || k === 'down') { this.row = (this.row + (k === 'up' ? -1 : 1) + 3) % 3; g.sfx('snd_menumove'); }
     if (k === 'cancel') { g.sfx('snd_menumove'); this.app.pop(); }
@@ -723,19 +723,19 @@ class EquipScreen implements Screen {
       const gear = this.app.gearCache.get(this.s.fight.chapter);
       if (!gear) return;
       g.sfx('snd_select');
-      const c = this.s.fight.party[this.col];
+      const c = partyOf(this.s.fight, this.s.variant)[this.col];
       const sl = this.slots(c)[this.row];
       const rules = this.s.fight.gear;
       if (sl.kind === 'weapon') {
         const cur = this.s.loadout.weapons[c];
-        const usedElsewhere = new Set(this.s.fight.party.filter((o) => o !== c).map((o) => this.s.loadout.weapons[o]).filter((w) => rules.unique.weapons.includes(w)));
+        const usedElsewhere = new Set(partyOf(this.s.fight, this.s.variant).filter((o) => o !== c).map((o) => this.s.loadout.weapons[o]).filter((w) => rules.unique.weapons.includes(w)));
         const list = gear.weapons.filter((w) => (w.who?.includes(c) || w.id === rules.defaults.weapons[c]) && (this.s.sandbox || isLegal(rules.weapons, w.id, 'weapons')) && !usedElsewhere.has(w.id));
         this.app.push(new PickScreen(this.app, 'WEAPON', list, cur, false, (id) => { this.s.loadout.weapons[c] = id; }));
       } else {
         const arm = (this.s.loadout.armors[c] ??= [0, 0]);
         const cur = arm[sl.idx];
         const used = new Set<number>();
-        for (const o of this.s.fight.party) (this.s.loadout.armors[o] ?? [0, 0]).forEach((a, k2) => { if (!(o === c && k2 === sl.idx) && rules.unique.armors.includes(a)) used.add(a); });
+        for (const o of partyOf(this.s.fight, this.s.variant)) (this.s.loadout.armors[o] ?? [0, 0]).forEach((a, k2) => { if (!(o === c && k2 === sl.idx) && rules.unique.armors.includes(a)) used.add(a); });
         const list = gear.armors.filter((a) => a.who?.includes(c) && (this.s.sandbox || isLegal(rules.armors, a.id, 'armors')) && !used.has(a.id));
         this.app.push(new PickScreen(this.app, 'ARMOR', list, cur, true, (id) => { arm[sl.idx] = id; }));
       }
@@ -797,7 +797,7 @@ class StatsScreen implements Screen {
   private static KEYS = ['hp', 'at', 'df', 'mag'] as const;
   draw(g: Gfx): void {
     g.text('fnt_mainbig', 'STATS (SANDBOX)', 320, 16, C.white, 1, 1);
-    const party = this.s.fight.party;
+    const party = partyOf(this.s.fight, this.s.variant);
     const colW = 600 / party.length;
     party.forEach((c, i) => {
       const x = 20 + i * colW;
@@ -817,7 +817,7 @@ class StatsScreen implements Screen {
   }
   key(k: MenuKey): void {
     const g = this.app.g;
-    const party = this.s.fight.party;
+    const party = partyOf(this.s.fight, this.s.variant);
     const c = party[this.col];
     const key = StatsScreen.KEYS[this.row];
     if (k === 'up' || k === 'down') { this.row = (this.row + (k === 'up' ? -1 : 1) + 4) % 4; g.sfx('snd_menumove'); return; }
