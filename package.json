@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "tsc -p . && vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && wrangler pages deploy dist --project-name deltarune-fights --commit-dirty=true",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name deltarune-fights --branch main --commit-dirty=true",
     "test:browser": "node tests/browser/menu-flow.mjs /tmp"
   },
   "devDependencies": {
