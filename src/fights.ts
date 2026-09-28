@@ -77,7 +77,6 @@ const range = (a: number, b: number) => Array.from({ length: b - a + 1 }, (_, i)
 const CH3_RULES = chapterRules([1, 2, 3, 5, 6, 7, 8, 9, 10, ...range(11, 26)], range(1, 27), range(1, 39));
 const ALL_RULES = chapterRules('all', 'all', 'all');
 
-const PENDING: GearRules = { weapons: [], armors: [], items: [], unique: { weapons: [], armors: [] }, defaults: { weapons: {}, armors: {}, items: [] } };
 
 export const FIGHTS: FightDef[] = [
   {
@@ -185,10 +184,25 @@ export const FIGHTS: FightDef[] = [
     phases: [{ id: 6, name: 'TURN 6' }, { id: 12, name: 'TURN 12 (50%)' }, { id: 16, name: 'TURN 16 (75%)' }, { id: 20, name: 'FINAL HAMMER' }],
     modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: ALL_RULES, available: true,
   },
-  { id: 'flowery', name: 'FLOWERY', chapter: 5, sprite: 'boss_flowery', music: [], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: PENDING, available: false },
   {
-    id: 'pink', name: 'PINK', chapter: 5, sprite: 'boss_pink', music: [], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: PENDING, available: false,
-    variants: [{ id: 'easy', name: 'EASY' }, { id: 'normal', name: 'NORMAL' }, { id: 'harder', name: 'HARDER BOMBS' }],
+    id: 'flowery', name: 'FLOWERY', chapter: 5, sprite: 'boss_flowery',
+    music: ['rakuichi_buster_wip.ogg', 'Flowerman_Arrangement.ogg', 'gameover_short.ogg', 'AUDIO_DEFEAT.ogg'],
+    party: [1, 2, 3],
+    attacks: ['WALL TUTORIAL', 'PETAL JARONA', 'HEDGE CHASE', 'JARONA BARRAGE', "SETH'S BOXES", 'AQUA KNIVES', "SETH'S BOXES EX",
+      'ORANGE COMBO', 'JUST KIDDING', 'WILD CHASE', 'JUSTICE CHASE', 'SUPER JARONA', 'HARD JARONA'].map((name, id) => ({ id, name })),
+    phases: [2, 3, 4, 5, 6].map((id) => ({ id, name: `PHASE ${id}` })),
+    modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: ALL_RULES, available: true,
+  },
+  {
+    id: 'pink', name: 'PINK', chapter: 5, sprite: 'boss_pink',
+    music: ['pink_theme.ogg', 'pink_theme_mad.ogg', 'rakuichi_buster_wip.ogg', 'pink.ogg', 'gameover_short.ogg', 'AUDIO_DEFEAT.ogg'],
+    party: [1, 2, 3],
+    attacks: ['PURPLE CATS', 'BOMB BACKSTORY', 'CAT BEAT', 'GEL PEN BOMBS', 'FIRST CONCERT', 'RANDOM CATS', 'SPIN BOX', '3D TUNNEL',
+      'NEW HAT BOMBS', 'WISHLIST SONG', 'QUICK SPIN', 'ANIME FACE BOX', 'BIG BOMB', 'CAT CONGA', 'TUNNEL RUSH', 'FLIP CATS',
+      'BOMB STORM', 'ENCORE'].map((name, id) => ({ id, name })),
+    phases: [{ id: 2, name: 'SECOND DATE' }, { id: 3, name: 'GHOST' }, { id: 4, name: 'FINALE' }],
+    modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: ALL_RULES, available: true,
+    variants: [{ id: 'normal', name: 'DEFAULT BOMBS' }, { id: 'easy', name: 'NICER BOMBS' }, { id: 'harder', name: 'MEANER BOMBS' }],
   },
 ];
 
