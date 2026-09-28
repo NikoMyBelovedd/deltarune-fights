@@ -32,7 +32,7 @@ interface Screen {
   overlay?: boolean;
 }
 
-export const SOURCE_URL = 'https://github.com/michaelcube9214-wq/deltarune-fights';
+export const SOURCE_URL = 'https://github.com/NikoMyBelovedd/deltarune-fights';
 
 const fmtTime = (s: number) => {
   const m = Math.floor(s / 60);

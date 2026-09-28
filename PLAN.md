@@ -15,7 +15,7 @@ Reference project: https://shadowcrystal.dev/DEVICE_KNIGHT/ (Roaring Knight only
 - **No game assets in git, ever.** `npm run game` builds everything from the local install into gitignored folders (`.gamedata/`, `public/game`, `public/ui`, `public/data`).
 - Files over 4 MB ship gzipped and split into parts under 20 MiB (Cloudflare Pages has a 25 MiB per-file limit). The worker streams and stitches them into the browser's OPFS cache, keyed by content hash.
 - Public site on **Cloudflare Pages via direct upload** (`npm run deploy`), `*.pages.dev` for now, custom domain later.
-- Source on GitHub (account `michaelcube9214-wq`).
+- Source: https://github.com/NikoMyBelovedd/deltarune-fights (public, AGPL-3.0).
 
 ## Fight scope
 - **Full battle**: party, FIGHT/ACT/MAGIC/ITEM/SPARE/DEFEND, TP, spells, attack bars, in-battle dialogue, win/lose.
