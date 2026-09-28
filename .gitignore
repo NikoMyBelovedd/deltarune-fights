@@ -16,3 +16,5 @@ tools/bs-web-ref/
 public/engine/butterscotch.*
 public/data/
 public/ui/
+docs/*-shots/
+.claude/

@@ -28,6 +28,8 @@ Set `DELTARUNE_DIR` if your install isn't at the Flatpak Steam path. Chapter 3 i
 - `tools/` has the extraction, patching and bundling scripts.
 - `docs/` has research notes for each fight.
 
-## Licenses
+## License
 
-The shipped engine (`public/engine/butterscotch.*`) is built from Butterscotch, which is AGPL-3.0, plus the patches in `patches/butterscotch/`. DELTARUNE belongs to Toby Fox. This project is not affiliated with him. Please buy the game.
+This project is licensed under the **AGPL-3.0** (see `LICENSE`). The engine the site ships (`public/engine/butterscotch.*`) is built from [Butterscotch](https://github.com/ButterscotchRunner/Butterscotch), which is also AGPL-3.0, with the modifications in `patches/butterscotch/`.
+
+DELTARUNE belongs to Toby Fox. This project is not affiliated with him, and this repository contains no game files. Please buy the game.

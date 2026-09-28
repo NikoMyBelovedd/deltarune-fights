@@ -32,6 +32,8 @@ interface Screen {
   overlay?: boolean;
 }
 
+export const SOURCE_URL = 'https://github.com/michaelcube9214-wq/deltarune-fights';
+
 const fmtTime = (s: number) => {
   const m = Math.floor(s / 60);
   const sec = s - m * 60;
@@ -1184,9 +1186,13 @@ class CreditsScreen implements Screen {
       g.text('fnt_mainbig', a, 60, 100 + i * 42, b ? C.gray : C.white);
       if (b) g.text('fnt_mainbig', b, 580, 100 + i * 42, C.white, 1, 2);
     });
-    g.text('fnt_main', 'X: BACK', 320, 450, C.gray, 1, 1);
+    g.text('fnt_main', `SOURCE (AGPL-3.0): ${SOURCE_URL.replace('https://', '')}`, 320, 404, C.gray, 1, 1);
+    g.text('fnt_main', 'C: OPEN SOURCE CODE     X: BACK', 320, 450, C.gray, 1, 1);
   }
-  key(k: MenuKey): void { if (k === 'cancel' || k === 'confirm') this.app.pop(); }
+  key(k: MenuKey): void {
+    if (k === 'menu') { window.open(SOURCE_URL, '_blank', 'noopener'); return; }
+    if (k === 'cancel' || k === 'confirm') this.app.pop();
+  }
 }
 
 export { VK };
