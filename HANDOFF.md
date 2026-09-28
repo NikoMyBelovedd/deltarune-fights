@@ -12,10 +12,21 @@ Read `PLAN.md` for the agreed scope and `docs/porting-guide.md` for how a fight 
 ## Status
 - **Jevil and King (Ch1): done.** Normal, Hitless, Practice, Single Attack and Endless all work; Jevil also has phase select. Verified headlessly and in Chromium (`tests/browser/*.mjs`).
 - **Working features:** menus, gear and items (story-legal, plus sandbox), stat editor, dials, share links, records, replays (verified to reproduce runs exactly), skip intro, gamepad support, rebinding.
-- **Ch2–5 fights:** four background agents were porting them (Spamton NEO normal and Snowgrave, Queen, Knight, Tenna, Titan, Gerson, Flowery, and Pink easy/normal/harder). Their output, if any, is in `patches/ch{2..5}/` and `docs/ch{2..5}-fights.md`. **Check what exists; it may be partial or unverified.** To finish each fight:
-  1. copy the FightDef snippet from its doc into `src/fights.ts` and set `available: true`;
-  2. run `tools/patch/build.sh N` and then `node tools/build/bundle.ts N`;
-  3. test with `tools/patch/run-desktop.sh N <ini> --headless ...` and in the browser.
+- **Ch2–5 fights: partial, unverified.** The four porting agents were stopped mid-work before writing their `docs/chN-fights.md` or FightDef snippets. What they left:
+  - `patches/ch{2,3,4,5}/drweb_chN.gml` + `manifest.json` exist for every chapter.
+  - Test configs for all ten fights are in `tests/configs/ch*-*.ini`.
+  - Screenshots are in `docs/ch2-shots`, `docs/ch4-shots`.
+  - Last known state of each chapter:
+    - **Ch2 (Spamton NEO + Snowgrave, Queen):** most complete. Configs cover every mode. Last step in progress: "fix the Queen intro double-emit and rebuild".
+    - **Ch3 (Knight, Tenna):** GML written; it was still writing `manifest.json`, so the manifest may be incomplete.
+    - **Ch4 (Titan, Gerson):** hooks written, including per-attack single configs for both bosses. It was about to write the doc.
+    - **Ch5 (Flowery, Pink):** Flowery hooks written. It had just finished Pink research and was starting Pink's hooks (variant flag, quick intro, attack forcing, phases, win hook), so **Pink is likely missing or incomplete**.
+  - For each chapter, the next steps are:
+    1. Run `tools/patch/build.sh N` and fix any compile errors.
+    2. Run each `tests/configs/chN-*.ini` with `tools/patch/run-desktop.sh N <ini> --headless --playback-inputs $PWD/tests/inputs/mash-z-long.json --exit-at-frame 3000`. Check for `@@DRWEB battle`, `attack` and `hit` events, and look at the screenshots.
+    3. Write the FightDef entries in `src/fights.ts` (music list = every `snd_init` in the fight's code; attacks and phases come from the GML maps) and set `available: true`.
+    4. Run `node tools/build/bundle.ts N`, then test in the browser.
+  - None of this ch2–5 work is committed; it is in the working tree only.
 - **Known risks:** Ch4 relies heavily on shaders, and Butterscotch's compatibility list reports Ch5 Pink as broken. The agents were asked to diagnose these; fixes go in as new `patches/butterscotch/*.patch` files.
 
 ## Gotchas
