@@ -65,6 +65,12 @@
       "code": "gml_Object_obj_date_controller_Step_0",
       "find": "scr_wincombat();",
       "replace": "drweb_finish(\"date\");\n        scr_wincombat();"
+    },
+    {
+      "op": "find",
+      "code": "gml_GlobalScript_snd_init",
+      "find": "function snd_init(arg0)\n{",
+      "replace": "function snd_init(arg0)\n{\n    drweb_emit(\"music\", arg0);"
     }
   ]
 }

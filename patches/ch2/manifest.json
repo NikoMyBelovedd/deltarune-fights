@@ -93,6 +93,12 @@
       "code": "gml_Object_obj_ch2_scene25_Step_0",
       "find": "global.plot = 165;",
       "replace": "global.plot = 165;\n    drweb_finish(global.flag[548] == 1 ? \"violence\" : \"pacify\");"
+    },
+    {
+      "op": "find",
+      "code": "gml_GlobalScript_snd_init",
+      "find": "function snd_init(arg0)\n{",
+      "replace": "function snd_init(arg0)\n{\n    drweb_emit(\"music\", arg0);"
     }
   ]
 }

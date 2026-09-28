@@ -78,6 +78,12 @@
       "op": "append",
       "code": "gml_Object_obj_tenna_enemy_Other_10",
       "text": "drweb_tenna_choose();"
+    },
+    {
+      "op": "find",
+      "code": "gml_GlobalScript_snd_init",
+      "find": "function snd_init(arg0)\n{",
+      "replace": "function snd_init(arg0)\n{\n    drweb_emit(\"music\", arg0);"
     }
   ]
 }

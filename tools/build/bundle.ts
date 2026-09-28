@@ -45,7 +45,7 @@ for (const ch of chapters.length ? chapters : [...new Set(FIGHTS.filter((f) => f
   for (const f of readdirSync(src)) {
     if (/^audiogroup\d+\.dat$/.test(f) || f.endsWith('.ogg')) copy(join(src, f), join(out, f));
   }
-  copy(join(src, 'lang/lang_en.json'), join(out, 'lang/lang_en.json'));
+  if (existsSync(join(src, 'lang/lang_en.json'))) copy(join(src, 'lang/lang_en.json'), join(out, 'lang/lang_en.json'));
   const music = new Set(FIGHTS.filter((f) => f.chapter === ch).flatMap((f) => f.music));
   for (const m of music) {
     const p = join(GAME, 'mus', m);

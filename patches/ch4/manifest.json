@@ -94,6 +94,12 @@
       "code": "gml_Object_obj_dw_church_arena_Step_0",
       "find": "con = (scr_flag_get(851) == 2) ? 60 : 99;",
       "replace": "con = (scr_flag_get(851) == 2) ? 60 : 99;\n    if (scr_flag_get(36) == 0)\n        drweb_finish(\"win\");"
+    },
+    {
+      "op": "find",
+      "code": "gml_GlobalScript_snd_init",
+      "find": "function snd_init(arg0)\n{",
+      "replace": "function snd_init(arg0)\n{\n    drweb_emit(\"music\", arg0);"
     }
   ]
 }

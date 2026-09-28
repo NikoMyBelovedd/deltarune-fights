@@ -66,6 +66,12 @@
       "op": "prepend",
       "code": "gml_Object_obj_king_boss_Step_0",
       "text": "drweb_king_step();"
+    },
+    {
+      "op": "find",
+      "code": "gml_GlobalScript_snd_init",
+      "find": "function snd_init(arg0)\n{",
+      "replace": "function snd_init(arg0)\n{\n    drweb_emit(\"music\", arg0);"
     }
   ]
 }
