@@ -1,7 +1,7 @@
 // The site shell: DELTARUNE-style menus drawn on a 640x480 canvas, and the running fight underneath.
 import { GameHost, type HostEvent } from '../engine/host.ts';
 import { ACTION_VK, ACTIONS, DEFAULT_BINDINGS, InputRouter, VK, type Action } from '../engine/input.ts';
-import { CHAR_HEADS, CHAR_NAMES, FIGHTS, MODE_NAMES, type FightDef, type Loadout, type ModeId } from '../fights.ts';
+import { CHAR_HEADS, CHAR_NAMES, FIGHTS, isLegal, MODE_NAMES, type FightDef, type Loadout, type ModeId } from '../fights.ts';
 import { configToIni, dataHash, DEFAULT_DIALS, dialsModified, packEvents, startFight, startReplay, type Dials, type FightConfig, type Replay } from '../play.ts';
 import { store } from '../store.ts';
 import { C, Gfx } from './gfx.ts';
@@ -645,10 +645,10 @@ class SetupScreen implements Screen {
     const s = this.setup;
     const rules = s.fight.gear;
     for (const c of s.fight.party) {
-      if (!rules.weapons.includes(s.loadout.weapons[c]) && s.loadout.weapons[c] !== rules.defaults.weapons[c]) s.loadout.weapons[c] = rules.defaults.weapons[c];
-      s.loadout.armors[c] = (s.loadout.armors[c] ?? [0, 0]).map((a) => (a === 0 || rules.armors.includes(a) ? a : 0)) as [number, number];
+      if (s.loadout.weapons[c] !== undefined && !isLegal(rules.weapons, s.loadout.weapons[c], 'weapons') && s.loadout.weapons[c] !== rules.defaults.weapons[c]) s.loadout.weapons[c] = rules.defaults.weapons[c];
+      if (s.loadout.armors[c]) s.loadout.armors[c] = s.loadout.armors[c].map((a) => (a === 0 || isLegal(rules.armors, a, 'armors') ? a : 0)) as [number, number];
     }
-    s.loadout.items = s.loadout.items.map((i) => (rules.items.includes(i) ? i : 0));
+    s.loadout.items = s.loadout.items.map((i) => (isLegal(rules.items, i, 'items') ? i : 0));
     s.stats = {};
   }
 }
@@ -729,14 +729,14 @@ class EquipScreen implements Screen {
       if (sl.kind === 'weapon') {
         const cur = this.s.loadout.weapons[c];
         const usedElsewhere = new Set(this.s.fight.party.filter((o) => o !== c).map((o) => this.s.loadout.weapons[o]).filter((w) => rules.unique.weapons.includes(w)));
-        const list = gear.weapons.filter((w) => (w.who?.includes(c) || w.id === rules.defaults.weapons[c]) && (this.s.sandbox || rules.weapons.includes(w.id)) && !usedElsewhere.has(w.id));
+        const list = gear.weapons.filter((w) => (w.who?.includes(c) || w.id === rules.defaults.weapons[c]) && (this.s.sandbox || isLegal(rules.weapons, w.id, 'weapons')) && !usedElsewhere.has(w.id));
         this.app.push(new PickScreen(this.app, 'WEAPON', list, cur, false, (id) => { this.s.loadout.weapons[c] = id; }));
       } else {
         const arm = (this.s.loadout.armors[c] ??= [0, 0]);
         const cur = arm[sl.idx];
         const used = new Set<number>();
         for (const o of this.s.fight.party) (this.s.loadout.armors[o] ?? [0, 0]).forEach((a, k2) => { if (!(o === c && k2 === sl.idx) && rules.unique.armors.includes(a)) used.add(a); });
-        const list = gear.armors.filter((a) => a.who?.includes(c) && (this.s.sandbox || rules.armors.includes(a.id)) && !used.has(a.id));
+        const list = gear.armors.filter((a) => a.who?.includes(c) && (this.s.sandbox || isLegal(rules.armors, a.id, 'armors')) && !used.has(a.id));
         this.app.push(new PickScreen(this.app, 'ARMOR', list, cur, true, (id) => { arm[sl.idx] = id; }));
       }
     }
@@ -867,7 +867,7 @@ class ItemsScreen implements Screen {
       const gear = this.app.gearCache.get(this.s.fight.chapter);
       if (!gear) return;
       g.sfx('snd_select');
-      const list = gear.items.filter((i) => this.s.sandbox || this.s.fight.gear.items.includes(i.id));
+      const list = gear.items.filter((i) => this.s.sandbox || isLegal(this.s.fight.gear.items, i.id, 'items'));
       this.app.push(new PickScreen(this.app, 'ITEM', list, this.s.loadout.items[this.sel] ?? 0, true, (id) => { this.s.loadout.items[this.sel] = id; this.compact(); }));
     }
   }

@@ -12,10 +12,10 @@ export interface Loadout {
 }
 
 export interface GearRules {
-  /** Weapons/armors/items obtainable before this fight in the story. Sandbox ignores these. */
-  weapons: number[];
-  armors: number[];
-  items: number[];
+  /** Weapons/armors/items obtainable before this fight in the story. Sandbox ignores these. 'all' = every non-debug item of the chapter. */
+  weapons: number[] | 'all';
+  armors: number[] | 'all';
+  items: number[] | 'all';
   /** Ids that exist only once in the story (can't be equipped twice). */
   unique: { weapons: number[]; armors: number[] };
   defaults: Loadout;
@@ -64,11 +64,18 @@ const CH2_MANSION: GearRules = {
 
 // Chapters 3-5: equipment comes from the game's own chapter defaults unless changed ("GAME DEFAULT").
 // Legal lists are approximate (every non-debug item of the chapter) until a per-fight obtainability pass.
-function chapterRules(weapons: number[], armors: number[], items: number[]): GearRules {
+/** Debug-only gear (EverybodyWeapon) is never "legal". */
+export const DEBUG_GEAR = { weapons: [4], armors: [] as number[], items: [] as number[] };
+export function isLegal(list: number[] | 'all', id: number, kind: 'weapons' | 'armors' | 'items'): boolean {
+  return list === 'all' ? !DEBUG_GEAR[kind].includes(id) : list.includes(id);
+}
+
+function chapterRules(weapons: number[] | 'all', armors: number[] | 'all', items: number[] | 'all'): GearRules {
   return { weapons, armors, items, unique: { weapons: [], armors: [] }, defaults: { weapons: {}, armors: {}, items: [] } };
 }
 const range = (a: number, b: number) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
 const CH3_RULES = chapterRules([1, 2, 3, 5, 6, 7, 8, 9, 10, ...range(11, 26)], range(1, 27), range(1, 39));
+const ALL_RULES = chapterRules('all', 'all', 'all');
 
 const PENDING: GearRules = { weapons: [], armors: [], items: [], unique: { weapons: [], armors: [] }, defaults: { weapons: {}, armors: {}, items: [] } };
 
@@ -154,8 +161,30 @@ export const FIGHTS: FightDef[] = [
     phases: [{ id: 2, name: 'HALF HP' }, { id: 3, name: 'FINAL EPISODE' }],
     modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: CH3_RULES, available: true,
   },
-  { id: 'titan', name: 'TITAN', chapter: 4, sprite: 'boss_titan', music: [], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: PENDING, available: false },
-  { id: 'gerson', name: 'GERSON', chapter: 4, sprite: 'boss_gerson', music: [], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: PENDING, available: false },
+  {
+    id: 'titan', name: 'TITAN', chapter: 4, sprite: 'boss_titan',
+    music: ['wind_highplace.ogg', 'GALLERY.ogg', 'titan_battle.ogg', 'gameover_short.ogg', 'AUDIO_DEFEAT.ogg'],
+    party: [1, 2, 3],
+    attacks: [
+      { id: 0, name: 'SWARM' }, { id: 1, name: 'GAZE' }, { id: 2, name: 'HEART GRIP' }, { id: 3, name: 'UNLEASHED' },
+      { id: 4, name: 'SLITHER' }, { id: 5, name: 'SWARM II' }, { id: 6, name: 'HANDS' }, { id: 7, name: 'UNLEASHED II' },
+      { id: 8, name: 'SLITHER II' }, { id: 9, name: 'SWARM III' }, { id: 10, name: 'HANDS II' }, { id: 11, name: 'DESPERATION' },
+      { id: 12, name: 'UNLEASHED III' },
+    ],
+    phases: [{ id: 3, name: 'SHIELD RETURNS' }, { id: 5, name: 'SHIELD RETURNS II' }, { id: 6, name: 'THIRD UNLEASH' }, { id: 7, name: 'REGENERATION' }, { id: 8, name: 'OLD MAN' }],
+    modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: ALL_RULES, available: true,
+  },
+  {
+    id: 'gerson', name: 'GERSON', chapter: 4, sprite: 'boss_gerson',
+    music: ['church_dark_study.ogg', 'fanfare.ogg', 'gerson_theme_intro.ogg', 'ch4_extra_boss.ogg', 'gerson_defeated.ogg', 'gameover_short.ogg', 'AUDIO_DEFEAT.ogg'],
+    party: [2],
+    attacks: [
+      ...Array.from({ length: 19 }, (_, i) => ({ id: i, name: `TURN ${i + 1}` })),
+      { id: 19, name: 'HAMMER OF JUSTICE' },
+    ],
+    phases: [{ id: 6, name: 'TURN 6' }, { id: 12, name: 'TURN 12 (50%)' }, { id: 16, name: 'TURN 16 (75%)' }, { id: 20, name: 'FINAL HAMMER' }],
+    modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: ALL_RULES, available: true,
+  },
   { id: 'flowery', name: 'FLOWERY', chapter: 5, sprite: 'boss_flowery', music: [], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: PENDING, available: false },
   {
     id: 'pink', name: 'PINK', chapter: 5, sprite: 'boss_pink', music: [], party: [1, 2, 3], attacks: [], phases: [], modes: ['normal'], gear: PENDING, available: false,
