@@ -77,31 +77,49 @@ function drweb_flowery_room_step()
         exit;
     var _fire = "";
     if (con < 0 && enter_active)
+        _fire = "flowery_a";
+    else if (con == 3 && customcon == 1)
+        _fire = "flowery_b";
+    else if (con == 6 && customcon == 1)
+        _fire = "flowery_c";
+    if (_fire == "")
+        exit;
+    // Put the party where the player would have walked them: Kris on the trigger, Susie and Ralsei right behind.
+    // Then the cutscene's own walks are short and stay on the ground.
+    with (obj_trigger)
+    {
+        if (extflag == _fire)
+        {
+            obj_mainchara.x += (bbox_left + 8) - obj_mainchara.bbox_left;
+            obj_mainchara.y += (bbox_top + 1) - obj_mainchara.bbox_top;
+        }
+    }
+    with (obj_caterpillarchara)
+    {
+        x = obj_mainchara.x;
+        y = obj_mainchara.y;
+        scr_caterpillar_interpolate();
+    }
+    if (_fire == "flowery_a")
     {
         con = 0;
         global.interact = 1;
         enter_active = false;
-        _fire = "flowery_a";
     }
-    else if (con == 3 && customcon == 1)
+    else if (_fire == "flowery_b")
     {
         con = 5;
         lose_control();
-        _fire = "flowery_b";
     }
-    else if (con == 6 && customcon == 1)
+    else
     {
         con = 7;
         lose_control();
-        _fire = "flowery_c";
     }
-    if (_fire != "")
+    with (obj_trigger)
     {
-        with (obj_trigger)
-        {
-            if (extflag == _fire)
-                instance_destroy();
-        }
+        if (extflag == _fire)
+            instance_destroy();
     }
 }
 
