@@ -40,6 +40,10 @@ export interface FightDef {
   phases: { id: number; name: string }[];
   modes: ModeId[];
   gear: GearRules;
+  /** Typical loadout of a normal playthrough at this fight (overrides gear.defaults). */
+  defaults?: Loadout;
+  /** Per-variant defaults (e.g. Snowgrave). */
+  variantDefaults?: Record<string, Loadout>;
   available: boolean;
 }
 
@@ -99,6 +103,7 @@ export const FIGHTS: FightDef[] = [
     ],
     modes: ['normal', 'hitless', 'practice', 'single', 'endless'],
     gear: CH1_CASTLE,
+    defaults: { weapons: {1: 5, 2: 6, 3: 10}, armors: {1: [1, 2], 2: [1, 5], 3: [1, 4]}, items: [8, 8, 8, 1, 2, 6] },
     available: true,
   },
   {
@@ -111,6 +116,7 @@ export const FIGHTS: FightDef[] = [
       { id: 8, name: 'SPADE STORM' }, { id: 9, name: 'CHAIN KING III' }, { id: 10, name: 'CHAIN SWING II' },
     ],
     phases: [], modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: CH1_CASTLE, available: true,
+    defaults: { weapons: {1: 5, 2: 6, 3: 9}, armors: {1: [1, 2], 2: [1, 5], 3: [1, 4]}, items: [8, 8, 1, 1, 2, 6] },
   },
   {
     id: 'spamton_neo', name: 'SPAMTON NEO', chapter: 2, sprite: 'boss_spamton_neo',
@@ -124,6 +130,8 @@ export const FIGHTS: FightDef[] = [
     ],
     phases: [{ id: 2, name: 'LATE FIGHT' }, { id: 3, name: 'UNDER 30% HP' }, { id: 4, name: 'FINALE' }],
     modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: CH2_MANSION, available: true,
+    defaults: { weapons: {1: 16, 2: 17, 3: 18}, armors: {1: [11, 10], 2: [5, 12], 3: [4, 3]}, items: [16, 16, 16, 24, 25, 2] },
+    variantDefaults: { snowgrave: { weapons: {1: 16}, armors: {1: [2, 10]}, items: [6, 23, 24, 16, 16, 16] } },
     variants: [{ id: 'normal', name: 'NORMAL' }, { id: 'snowgrave', name: 'SNOWGRAVE' }],
     variantParty: { snowgrave: [1] },
   },
@@ -139,6 +147,7 @@ export const FIGHTS: FightDef[] = [
     ],
     phases: [{ id: 2, name: '75% HP' }, { id: 3, name: '50% HP' }, { id: 4, name: '25% HP' }],
     modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: CH2_MANSION, available: true,
+    defaults: { weapons: {1: 16, 2: 17, 3: 18}, armors: {1: [11, 10], 2: [5, 12], 3: [4, 3]}, items: [16, 16, 24, 24, 25, 2] },
   },
   {
     id: 'tenna', name: 'TENNA', chapter: 3, sprite: 'boss_tenna',
@@ -151,6 +160,7 @@ export const FIGHTS: FightDef[] = [
     ],
     phases: [{ id: 2, name: 'HALF HP' }, { id: 3, name: 'FINAL EPISODE' }],
     modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: CH3_RULES, available: true,
+    defaults: { weapons: {1: 23, 2: 24, 3: 25}, armors: {1: [11, 25], 2: [5, 12], 3: [4, 10]}, items: [34, 34, 39, 37, 2] },
   },
   {
     id: 'knight', name: 'ROARING KNIGHT', chapter: 3, sprite: 'boss_knight',
@@ -162,6 +172,7 @@ export const FIGHTS: FightDef[] = [
     ],
     phases: [{ id: 2, name: 'PHASE 2' }, { id: 3, name: 'PHASE 3' }, { id: 4, name: 'PHASE 4 (80%)' }],
     modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: CH3_RULES, available: true,
+    defaults: { weapons: {1: 23, 2: 24, 3: 25}, armors: {1: [11, 25], 2: [5, 12], 3: [4, 10]}, items: [39, 39, 34, 34, 2] },
   },
   {
     id: 'gerson', name: 'GERSON', chapter: 4, sprite: 'boss_gerson',
@@ -173,6 +184,7 @@ export const FIGHTS: FightDef[] = [
     ],
     phases: [{ id: 6, name: 'TURN 6' }, { id: 12, name: 'TURN 12 (50%)' }, { id: 16, name: 'TURN 16 (75%)' }, { id: 20, name: 'FINAL HAMMER' }],
     modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: ALL_RULES, available: true,
+    defaults: { weapons: {2: 54}, armors: {2: [50, 51]}, items: [1, 1, 61, 2] },
   },
   {
     id: 'titan', name: 'TITAN', chapter: 4, sprite: 'boss_titan',
@@ -186,6 +198,7 @@ export const FIGHTS: FightDef[] = [
     ],
     phases: [{ id: 3, name: 'SHIELD RETURNS' }, { id: 5, name: 'SHIELD RETURNS II' }, { id: 6, name: 'THIRD UNLEASH' }, { id: 7, name: 'REGENERATION' }, { id: 8, name: 'OLD MAN' }],
     modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: ALL_RULES, available: true,
+    defaults: { weapons: {1: 53, 2: 54, 3: 51}, armors: {1: [50, 25], 2: [52, 11], 3: [4, 51]}, items: [62, 61, 61, 1, 1, 2] },
   },
   {
     id: 'pink', name: 'PINK', chapter: 5, sprite: 'boss_pink',
@@ -196,6 +209,7 @@ export const FIGHTS: FightDef[] = [
       'BOMB STORM', 'ENCORE'].map((name, id) => ({ id, name })),
     phases: [{ id: 2, name: 'SECOND DATE' }, { id: 3, name: 'GHOST' }, { id: 4, name: 'FINALE' }],
     modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: ALL_RULES, available: true,
+    defaults: { weapons: {1: 30, 2: 31, 3: 37}, armors: {1: [33, 50], 2: [33, 52], 3: [4, 51]}, items: [42, 41, 41, 43, 1, 2] },
     variants: [{ id: 'normal', name: 'DEFAULT BOMBS' }, { id: 'easy', name: 'NICER BOMBS' }, { id: 'harder', name: 'MEANER BOMBS' }],
   },
   {
@@ -206,6 +220,7 @@ export const FIGHTS: FightDef[] = [
       'ORANGE COMBO', 'JUST KIDDING', 'WILD CHASE', 'JUSTICE CHASE', 'SUPER JARONA', 'HARD JARONA'].map((name, id) => ({ id, name })),
     phases: [2, 3, 4, 5, 6].map((id) => ({ id, name: `PHASE ${id}` })),
     modes: ['normal', 'hitless', 'practice', 'single', 'endless'], gear: ALL_RULES, available: true,
+    defaults: { weapons: {1: 30, 2: 54, 3: 51}, armors: {1: [33, 50], 2: [33, 52], 3: [4, 51]}, items: [42, 41, 41, 70, 43, 2] },
   },
 ];
 
@@ -222,4 +237,11 @@ export const CHAR_HEADS: Record<number, string> = { 1: 'spr_headkris', 2: 'spr_h
 
 export function partyOf(f: FightDef, variant: string): number[] {
   return f.variantParty?.[variant] ?? f.party;
+}
+
+/** Bump when default loadouts change so saved setups pick up the new defaults once. */
+export const DEFAULTS_VERSION = 2;
+
+export function defaultLoadout(f: FightDef, variant: string): Loadout {
+  return structuredClone(f.variantDefaults?.[variant] ?? f.defaults ?? f.gear.defaults);
 }

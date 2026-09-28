@@ -1,7 +1,7 @@
 // The site shell: DELTARUNE-style menus drawn on a 640x480 canvas, and the running fight underneath.
 import { GameHost, type HostEvent } from '../engine/host.ts';
 import { ACTION_VK, ACTIONS, DEFAULT_BINDINGS, InputRouter, VK, type Action } from '../engine/input.ts';
-import { CHAR_HEADS, CHAR_NAMES, FIGHTS, isLegal, MODE_NAMES, partyOf, type FightDef, type Loadout, type ModeId } from '../fights.ts';
+import { CHAR_HEADS, CHAR_NAMES, defaultLoadout, DEFAULTS_VERSION, FIGHTS, isLegal, MODE_NAMES, partyOf, type FightDef, type Loadout, type ModeId } from '../fights.ts';
 import { configToIni, dataHash, DEFAULT_DIALS, dialsModified, packEvents, startFight, startReplay, type Dials, type FightConfig, type Replay } from '../play.ts';
 import { store } from '../store.ts';
 import { C, Gfx } from './gfx.ts';
@@ -200,7 +200,7 @@ export class App {
 
   // ---------------- running fights ----------------
   async launch(setup: Setup): Promise<void> {
-    store.saveLoadout(setup.fight.id, { loadout: setup.loadout, mode: setup.mode, variant: setup.variant, attack: setup.attack, phase: setup.phase, intro: setup.intro, sandbox: setup.sandbox, stats: setup.stats, dials: setup.dials });
+    store.saveLoadout(setup.fight.id, { loadout: setup.loadout, mode: setup.mode, variant: setup.variant, attack: setup.attack, phase: setup.phase, intro: setup.intro, sandbox: setup.sandbox, stats: setup.stats, dials: setup.dials, dv: DEFAULTS_VERSION });
     const introKey = `${setup.fight.id}:${setup.variant}`;
     const playIntro = setup.intro && (setup.mode === 'normal' || setup.mode === 'practice');
     const cfg: FightConfig = {
@@ -511,7 +511,7 @@ class BossSelectScreen implements Screen {
   }
 }
 
-interface SavedSetup { loadout: Loadout; mode: ModeId; variant: string; attack: number; phase: number; intro: boolean; sandbox: boolean; stats: Setup['stats']; dials?: Dials }
+interface SavedSetup { loadout: Loadout; mode: ModeId; variant: string; attack: number; phase: number; intro: boolean; sandbox: boolean; stats: Setup['stats']; dials?: Dials; dv?: number }
 
 class SetupScreen implements Screen {
   sel = 0;
@@ -528,11 +528,16 @@ class SetupScreen implements Screen {
       phase: 0,
       intro: !store.settings.seenIntro[`${fight.id}:${fight.variants?.[0]?.id ?? ''}`],
       sandbox: false,
-      loadout: structuredClone(fight.gear.defaults),
+      loadout: defaultLoadout(fight, fight.variants?.[0]?.id ?? ''),
       stats: {},
       dials: { ...DEFAULT_DIALS },
     };
-    if (saved) Object.assign(base, { ...saved, fight, loadout: saved.loadout ?? base.loadout, dials: { ...DEFAULT_DIALS, ...saved.dials } });
+    if (saved) {
+      // Saved setups from before the current default loadouts keep their choices but take the new loadout.
+      const fresh = saved.dv !== DEFAULTS_VERSION;
+      Object.assign(base, { ...saved, fight, dials: { ...DEFAULT_DIALS, ...saved.dials } });
+      base.loadout = fresh || !saved.loadout ? defaultLoadout(fight, base.variant) : saved.loadout;
+    }
     if (shared) {
       Object.assign(base, {
         mode: shared.mode, variant: shared.variant, attack: shared.attack, phase: shared.phase, sandbox: shared.sandbox,
@@ -568,7 +573,7 @@ class SetupScreen implements Screen {
   /** Every change is kept (mode, variant, gear, items, dials, stats), not only when a fight starts. */
   persist(): void {
     const s = this.setup;
-    const saved: SavedSetup = { loadout: s.loadout, mode: s.mode, variant: s.variant, attack: s.attack, phase: s.phase, intro: s.intro, sandbox: s.sandbox, stats: s.stats, dials: s.dials };
+    const saved: SavedSetup = { loadout: s.loadout, mode: s.mode, variant: s.variant, attack: s.attack, phase: s.phase, intro: s.intro, sandbox: s.sandbox, stats: s.stats, dials: s.dials, dv: DEFAULTS_VERSION };
     const json = JSON.stringify(saved);
     if (json !== this.savedJson) {
       this.savedJson = json;
@@ -629,7 +634,12 @@ class SetupScreen implements Screen {
     const cycle = <T,>(list: T[], cur: T, d: number): T => list[(list.indexOf(cur) + d + list.length) % list.length];
     const d = k === 'left' ? -1 : k === 'right' ? 1 : k === 'confirm' ? 1 : 0;
     if (row.id === 'mode' && d) { s.mode = cycle(s.fight.modes, s.mode, d); g.sfx('snd_menumove'); this.sel = Math.min(this.sel, this.rows().length - 1); }
-    if (row.id === 'variant' && d && s.fight.variants) { s.variant = cycle(s.fight.variants.map((v) => v.id), s.variant, d); g.sfx('snd_menumove'); }
+    if (row.id === 'variant' && d && s.fight.variants) {
+      const untouched = JSON.stringify(s.loadout) === JSON.stringify(defaultLoadout(s.fight, s.variant));
+      s.variant = cycle(s.fight.variants.map((v) => v.id), s.variant, d);
+      if (untouched) s.loadout = defaultLoadout(s.fight, s.variant);
+      g.sfx('snd_menumove');
+    }
     if (row.id === 'attack' && d && s.fight.attacks.length) { s.attack = cycle(s.fight.attacks.map((a) => a.id), s.attack, d); g.sfx('snd_menumove'); }
     if (row.id === 'phase' && d) { s.phase = cycle([0, ...s.fight.phases.map((p) => p.id)], s.phase, d); g.sfx('snd_menumove'); }
     if (row.id === 'intro' && d && (s.mode === 'normal' || s.mode === 'practice')) { s.intro = !s.intro; g.sfx('snd_menumove'); }
@@ -727,6 +737,7 @@ class EquipScreen implements Screen {
     const lines = g.wrap('fnt_mainbig', e ? `* ${e.desc}` : '* Nothing equipped.', 560).slice(0, 2);
     lines.forEach((l, i) => g.text('fnt_mainbig', l, 44, 402 + i * 30));
     if (e?.ability && lines.length < 2) g.text('fnt_main', e.ability, 44, 444, C.gray);
+    g.text('fnt_main', 'C: DEFAULT LOADOUT', 600, 20, C.gray, 1, 2);
   }
 
   key(k: MenuKey): void {
@@ -735,6 +746,11 @@ class EquipScreen implements Screen {
     if (k === 'left' || k === 'right') { this.col = (this.col + (k === 'left' ? -1 : 1) + n) % n; g.sfx('snd_menumove'); }
     if (k === 'up' || k === 'down') { this.row = (this.row + (k === 'up' ? -1 : 1) + 3) % 3; g.sfx('snd_menumove'); }
     if (k === 'cancel') { g.sfx('snd_menumove'); this.app.pop(); }
+    if (k === 'menu') {
+      // Back to the typical loadout for this fight (equipment and items).
+      this.s.loadout = defaultLoadout(this.s.fight, this.s.variant);
+      g.sfx('snd_equip');
+    }
     if (k === 'confirm') {
       const gear = this.app.gearCache.get(this.s.fight.chapter);
       if (!gear) return;
