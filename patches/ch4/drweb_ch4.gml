@@ -13,6 +13,9 @@ function drweb_ch4_party_state(_plot)
         global.charauto[_i] = 0;
     global.plot = _plot;
     global.flag[9] = 1;
+    // Susie's healing arc: below 6 her Heal reads "Can't use" (scr_spellinfo case 11). The Sanctuary scene
+    // obj_ch4_DCA08D sets it to 6 before both the Gerson and Titan fights.
+    global.flag[850] = 6;
     global.interact = 0;
     drweb_apply_loadout();
 }
